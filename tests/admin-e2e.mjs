@@ -1,7 +1,7 @@
 // 感想の送信からダッシュボードまでを、ローカルの wrangler pages dev で通す（docs/ADMIN.md 7 節）
 // 使い方：npx wrangler pages dev dist --d1 DB=local-meet-the-painting --persist-to .wrangler/state --port 8788 を動かしてから
 //   NODE_PATH=<playwright の場所> node tests/admin-e2e.mjs [--shots <dir>]
-// Cookie は .dev.vars のテスト用の秘密で署名する。コードに抜け道は無い。音は出さない
+// .dev.vars はその場で作ったテスト用の値（tests/make-dev-vars.mjs）。ログインは本物の画面から。音は出さない
 import { createRequire } from 'node:module';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { signSession } from '../functions/_lib/admin-auth.js';
@@ -11,7 +11,7 @@ const BASE = process.env.BASE || 'http://localhost:8788';
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
 if (shots) mkdirSync(shots, { recursive: true });
-const vars = Object.fromEntries(readFileSync('.dev.vars', 'utf8').split('\n').filter((l) => /^[A-Z_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+const vars = Object.fromEntries(readFileSync('.dev.vars', 'utf8').split('\n').filter((l) => /^[A-Z0-9_]+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
 const WORK = 'harmoney';
 const XSS = '<img src=x onerror="window.__xss=1"><script>window.__xss=2</script> 朝の光みたいで好きです';
 
@@ -22,8 +22,15 @@ const PHONE = { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile:
 const PC = { viewport: { width: 1280, height: 860 }, locale: 'ja' };
 const shot = async (page, name, o = {}) => { if (shots) await page.screenshot({ path: `${shots}/${name}.png`, ...o }); };
 const collect = (page) => { const errs = []; page.on('pageerror', (e) => errs.push(String(e))); page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|ERR_/.test(m.text())) errs.push(m.text()); }); return errs; };
-const noGoogle = (ctx) => ctx.route(/accounts\.google\.com/, (r) => r.abort());
-const cookieFor = async (email, secret = vars.ADMIN_SESSION_SECRET) => ({ name: '__Host-mtp_admin', value: await signSession(email, secret), url: 'https://localhost', httpOnly: true, secure: true, sameSite: 'Strict' });
+// 本物のログイン画面から入る（Cookie を作って迂回しない）
+const login = async (page) => {
+  await page.goto(`${BASE}/admin/`);
+  await page.waitForSelector('.login-form');
+  await page.fill('#login-id', vars.ADMIN_USERNAME);
+  await page.fill('#login-pw', vars.ADMIN_E2E_PASSWORD);
+  await page.press('#login-pw', 'Enter');
+  await page.waitForSelector('.top .who');
+};
 
 // ───── 1. 認可：ログインしていなければ、データの API はすべて閉じている ─────
 for (const p of ['/api/admin/me', '/api/admin/summary', '/api/admin/feedback', '/api/admin/journey?sid=abcdefghij012345']) {
@@ -31,23 +38,44 @@ for (const p of ['/api/admin/me', '/api/admin/summary', '/api/admin/feedback', '
   check(r.status === 401, `Cookie なしの ${p} は 401（${r.status}）`);
 }
 {
-  const forged = await signSession(Object.keys({ 'owner@example.test': 1 })[0], 'z'.repeat(48));
+  const forged = await signSession(vars.ADMIN_USERNAME, 'z'.repeat(48));
   const r = await fetch(`${BASE}/api/admin/summary`, { headers: { Cookie: `__Host-mtp_admin=${forged}` } });
   check(r.status === 401, `別の秘密で署名した Cookie は 401（${r.status}）`);
-  const out = await signSession('stranger@example.test', vars.ADMIN_SESSION_SECRET);
+  const out = await signSession('someone-else', vars.ADMIN_SESSION_SECRET);
   const r2 = await fetch(`${BASE}/api/admin/summary`, { headers: { Cookie: `__Host-mtp_admin=${out}` } });
-  check(r2.status === 401, `許可外のメールの Cookie は 401（${r2.status}）`);
-  const good = await signSession('owner@example.test', vars.ADMIN_SESSION_SECRET);
+  check(r2.status === 401, `いまの ID と違う Cookie は 401（${r2.status}）`);
+  const good = await signSession(vars.ADMIN_USERNAME, vars.ADMIN_SESSION_SECRET);
   const r3 = await fetch(`${BASE}/api/admin/feedback/abcdefghijklmnop`, { method: 'DELETE', headers: { Cookie: `__Host-mtp_admin=${good}`, Origin: 'https://evil.example.com' } });
   check(r3.status === 403, `別の origin からの削除は 403（${r3.status}）`);
 }
 {
   const ctx = await browser.newContext(PC);
-  await noGoogle(ctx);
   const page = await ctx.newPage();
   await page.goto(`${BASE}/admin/`);
   await page.waitForSelector('.login');
   check(await page.locator('.login h1').isVisible(), 'ログインしていなければログインの画面');
+  check(await page.locator('#login-id').getAttribute('autocomplete') === 'username' && await page.locator('#login-pw').getAttribute('autocomplete') === 'current-password', 'パスワードマネージャーが使える入力欄');
+  // 違う組：文言は同じ。パスワードの欄は空に戻る。Enter で送れる
+  for (const [id, pw] of [['wrong-id', vars.ADMIN_E2E_PASSWORD], [vars.ADMIN_USERNAME, 'wrong-password-000']]) {
+    await page.fill('#login-id', id);
+    await page.fill('#login-pw', pw);
+    await page.press('#login-pw', 'Enter');
+    await page.waitForFunction(() => { const e = document.querySelector('.login-form .err'); return e && !e.hidden; });
+    check((await page.locator('.login-form .err').innerText()) === 'ID かパスワードが違います' && await page.inputValue('#login-pw') === '', `違う組（${id === 'wrong-id' ? 'ID' : 'パスワード'}）は「ID かパスワードが違います」`);
+  }
+  await shot(page, 'admin-login-failed');
+  // 正しい組で入り、読み直しても入ったまま。ログアウトで出る
+  await page.fill('#login-id', vars.ADMIN_USERNAME);
+  await page.fill('#login-pw', vars.ADMIN_E2E_PASSWORD);
+  await page.click('.login-send');
+  await page.waitForSelector('.top .who');
+  check((await page.locator('.top .who').innerText()) === vars.ADMIN_USERNAME, '正しい組でログインできる');
+  await page.reload();
+  await page.waitForSelector('.top .who');
+  check(true, '読み直してもログインしたまま');
+  await page.locator('.top .text-btn', { hasText: 'ログアウト' }).click();
+  await page.waitForSelector('.login-form');
+  check((await page.context().cookies()).every((k) => k.name !== '__Host-mtp_admin'), 'ログアウトで Cookie が消え、ログインの画面に戻る');
   check((await page.locator('meta[name="robots"]').getAttribute('content')).includes('noindex'), 'noindex の meta');
   await shot(page, 'admin-login-pc');
   await ctx.close();
@@ -229,14 +257,12 @@ for (const [tag, opts] of [['pc', PC], ['phone', PHONE]]) {
 // ───── 6. ダッシュボード ─────
 for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
   const ctx = await browser.newContext(opts);
-  await noGoogle(ctx);
-  await ctx.addCookies([await cookieFor('owner@example.test')]);
   const page = await ctx.newPage();
   const errs = collect(page);
-  await page.goto(`${BASE}/admin/`);
+  await login(page);
   await page.waitForSelector('.kpis .kpi');
   await page.waitForSelector('.fb, #fb .empty');
-  check((await page.locator('.top .who').innerText()) === 'owner@example.test', `${name}：ログインできている`);
+  check((await page.locator('.top .who').innerText()) === vars.ADMIN_USERNAME, `${name}：ログインできている`);
   if (name === 'pc') {
     const body = page.locator('.fb-body', { hasText: '朝の光みたいで' }).first();
     check(await body.count() === 1, '送った感想が届いている');
@@ -260,10 +286,8 @@ for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
 // ───── 7. 削除と改ざん ─────
 {
   const ctx = await browser.newContext(PC);
-  await noGoogle(ctx);
-  await ctx.addCookies([await cookieFor('owner@example.test')]);
   const page = await ctx.newPage();
-  await page.goto(`${BASE}/admin/`);
+  await login(page);
   await page.waitForSelector('.fb');
   const item = page.locator('.fb', { hasText: '朝の光みたいで' }).first();
   const before = await page.locator('.fb', { hasText: '朝の光みたいで' }).count();
@@ -277,12 +301,14 @@ for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
   check(await page.locator('.fb', { hasText: '朝の光みたいで' }).count() === before - 1, '読み直しても消えたまま');
   await ctx.close();
   const c2 = await browser.newContext(PC);
-  await noGoogle(c2);
-  const c = await cookieFor('owner@example.test');
-  await c2.addCookies([{ ...c, value: `${c.value.slice(0, -4)}AAAA` }]);
   const p2 = await c2.newPage();
+  await login(p2);
+  const real = (await c2.cookies()).find((k) => k.name === '__Host-mtp_admin');
+  check(!!real && real.httpOnly && real.secure && real.sameSite === 'Strict', 'Cookie は HttpOnly、Secure、SameSite=Strict');
+  await c2.clearCookies();
+  await c2.addCookies([{ ...real, value: `${real.value.slice(0, -4)}AAAA` }]);
   await p2.goto(`${BASE}/admin/`);
-  await p2.waitForSelector('.login');
+  await p2.waitForSelector('.login-form');
   check(true, '改ざんした Cookie ではログインの画面に戻る');
   await c2.close();
 }

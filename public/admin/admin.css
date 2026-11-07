@@ -100,3 +100,14 @@ details.all summary { min-height: 44px; display: flex; align-items: center; curs
 .fb-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin: 0 0 8px; }
 .fb-bulk[hidden] { display: none; }
 .fb-bulk .warn { color: var(--ink); font-size: 12.5px; }
+.sub-gap { margin-top: 10px; }
+/* ログイン：白に墨。欄は線でなく淡い面（docs/DESIGN.md）。スマホでも押しやすく、入力で画面が拡大しない 16px */
+.login-form { display: flex; flex-direction: column; gap: 4px; margin-top: 20px; text-align: left; }
+.login-form label { color: var(--ink-2); font-size: 12.5px; }
+.login-form input { width: 100%; min-height: 48px; margin-bottom: 12px; padding: 8px 12px; border: 0; border-radius: 6px; background: var(--bg-2); color: var(--ink); font: 400 16px/1.5 var(--sans); }
+.login-form input:focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; }
+.login-send { min-height: 48px; margin-top: 4px; border-radius: 6px; background: var(--ink); color: var(--bg); font-size: 14px; letter-spacing: .1em; }
+.login-send:hover { opacity: .92; }
+.login-send:disabled { opacity: .5; cursor: default; }
+.login-form .err { margin: 12px 0 0; color: var(--ink); font-size: 13px; text-align: center; }
+.login-form .err[hidden] { display: none; }

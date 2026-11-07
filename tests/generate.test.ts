@@ -286,7 +286,7 @@ describe('ギャラリーの大きさの区分（G-1）', async () => {
   });
 });
 
-describe('小さな物語の公開（DECISIONS 70）', () => {
+describe('小さな物語の公開（DECISIONS 73）', () => {
   const ja = '朝、カーテンを開ける。';
   it('作家の確認の印が無ければ公開しない', () => {
     expect(publishedStory({}, { ja })).toBeNull();

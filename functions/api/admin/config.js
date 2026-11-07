@@ -1,6 +1,6 @@
-// ログインの画面が要るものだけ。クライアント ID は公開してよい値。許可リストやメールアドレスは返さない
+// 設定が済んでいるかだけを返す（ID や Secret の中身は返さない）
 import { adminConfigured, adminJson } from '../../_lib/admin-auth.js';
 
 export function onRequestGet({ env }) {
-  return adminJson(200, adminConfigured(env) ? { configured: true, clientId: env.GOOGLE_CLIENT_ID } : { configured: false, clientId: null });
+  return adminJson(200, { configured: adminConfigured(env) });
 }

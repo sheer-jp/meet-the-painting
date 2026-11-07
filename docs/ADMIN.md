@@ -13,7 +13,7 @@
 | 自由入力があったという事実 | する（「自由入力あり」だけ） | 180 日 |
 | 受付や感想チャットで書いて、送らなかった文 | しない。答えを作るために Claude API へ渡すだけ | — |
 | 案内役の生成した文（相手のことばを含みうるので） | しない。ストックの問いに近ければその問いの文だけ、遠ければ「その他の問い」 | — |
-| IP、メールアドレス、User-Agent の生の値、位置 | しない（IP は回数制限のためメモリで数えるだけ） | — |
+| IP、メールアドレス、User-Agent の生の値、位置 | しない（IP は回数制限のためメモリで数えるだけ。管理ページのログインの失敗だけ、日替わりの HMAC にした値を 15 分残す） | — |
 
 - 会話をつなぐのは、タブごとのランダムな匿名 id（`sessionStorage`）。タブを閉じると消え、次は別の id
 - ブラウザが Global Privacy Control を出しているときは匿名 id を作らない（回数だけ。流れはつながない）
@@ -29,7 +29,12 @@
 - `events.detail` はカタログと照合したストックの文か、決まった語だけ。サーバーが照合し、知らない文は「その他の選択肢」にする（自由入力が混ざらない）
 - `cg_question`（案内役の問い）はブラウザから受け付けず、サーバーが応答の文から決める。候補は seed で選んだ 4 問。文字の近さで照合する。日本語以外の会話は照合できないので「その他の問い（日本語以外）」
 - 計測の失敗で会話や感想を止めない。出来事は `waitUntil`。`DB` が無いか表が無いとき、感想カードは**出さない**（できないことをボタンにしない）。サイトの他の部分は今までどおり
-- **`wrangler.toml` の D1 の行はコメントのまま**。id の無い binding を残すと配置が失敗するため（6 節の手順で外す）
+- `wrangler.toml` の D1（meet-the-painting）は紐付け済み。表は `migrations/`（6 節の手順で流す）。流すまで感想カードは出ない
+- **1 日の上限**：`daily_counts`（`migrations/0002`）に日本時間の日ごとの数を持つ。KV は書き込みの上限が低いので使わない
+  - `/api/stat` の D1 への記録：IP（/64）ごと 1 分 20 回（KV の数は 60 回）、全体で 1 日 15,000 件。超えたら KV の数だけ続ける（無料枠は 1 日 10 万行の書き込み）
+  - `/api/followup`：保存先が無い環境では受け付けない。同じ回線から 1 日 40 回、全体で 1 日 500 回。超えたら定型文
+  - `/api/followup/send`：同じ回線から 1 日 20 件（isolate のメモリだけ。IP は保存せず、ハッシュも残さない）、全体で 1 日 1000 件
+- **費用の上限は Anthropic の側にも置く**：Anthropic Console の Limits で月の spend limit を設定しておく（作家の操作）。ここの回数の上限は isolate をまたいで厳密ではないので、最後の守りは spend limit
 
 ### 既存の計測（KV と `/stats.html`）との整理
 
@@ -66,54 +71,56 @@ noindex、日本語、作家専用。依存なしの静的なページ（`public
 
 ## 5. 認証
 
-1. Google Identity Services のボタン → ID トークン → `POST /api/admin/login`
-2. サーバーが検証：RS256 の署名を Google の JWKS で、`aud` が `GOOGLE_CLIENT_ID`、`iss` が accounts.google.com、`exp`、`email_verified === true`、メールが `ADMIN_EMAILS` にある
+11-08 作家「Google ログインやめよう。ここでは重要性が高くないから、普通の ID パスワードにしましょう」（DECISIONS 74）。外のサービスに問い合わせない。
+
+1. `/admin/` の ID とパスワードの欄（`autocomplete="username"`、`current-password`。Enter で送れる。送信中は二度押しできない）→ `POST /api/admin/login`
+2. サーバーが確かめる：`Origin` が同じ。ID を定数時間で比べ、パスワードを PBKDF2-SHA256（`ADMIN_PASSWORD_HASH` の `pbkdf2$<回数>$<salt>$<hash>`。回数は Workers の上限 100,000 まで）で比べる。**ID が違っても同じだけ PBKDF2 を回し**、応答も区別しない（401 と「ID かパスワードが違います」だけ）
 3. 通れば `__Host-mtp_admin` Cookie（HMAC 署名、HttpOnly、Secure、SameSite=Strict、24 時間）
-4. `functions/api/admin/_middleware.js` が `/api/admin/*` を既定で拒否。`config` と `login` だけが例外。毎回 Cookie の署名、期限、許可リストを見直す（許可リストから外せばすぐ効く）。書き込みは `Origin` と `Sec-Fetch-Site` も確かめる
-- **閉じる条件**：`GOOGLE_CLIENT_ID`、`ADMIN_EMAILS`、`ADMIN_SESSION_SECRET`（32 文字以上）のどれかが欠けていれば誰も入れない。開発用の抜け道は無い
-- メールアドレスはコードと docs に書かない（公開リポジトリ）
+4. `functions/api/admin/_middleware.js` が `/api/admin/*` を既定で拒否。`config` と `login` だけが例外。毎回 Cookie の署名、期限、いまの ID と同じかを見直す。書き込みは `Origin` と `Sec-Fetch-Site` も見る
+- **閉じる条件**：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（形式が正しいこと）、`ADMIN_SESSION_SECRET`（32 文字以上）のどれかが欠ければ誰も入れない。開発用の抜け道は無い
+- **総当たり**：IP の /64 ごとに、15 分で 10 回失敗すると 429。数えるのは isolate のメモリと、D1 の `login_failures`（`migrations/0003`。D1 が無ければ KV に 15 分で消える鍵）。鍵は IP の /64 を日替わりで HMAC したもので、生の IP は保存しない。行は 15 分を過ぎたら消す。保存先が落ちているときはメモリの数だけで守る
+- パスワードは平文で持たない。リポジトリ、ログ、エラーの文に出さない。作るのは `scripts/admin-password.mjs`（打った文字を画面に出さず、ハッシュだけを標準出力に出す）
+- **ログアウトは、そのブラウザの Cookie を消すだけ**。Cookie に状態を持たない方式なので、Cookie の写しがあれば期限（24 時間）までは効く。**`ADMIN_SESSION_SECRET` を入れ替えると全部のセッションがすぐ切れる**（端末をなくしたとき、パスワードを変えたときはこれも行う）：`openssl rand -base64 48 | npx wrangler pages secret put ADMIN_SESSION_SECRET --project-name enter-the-painting`
+- CSP：`/admin/*` は `default-src 'none'`、スクリプト、CSS、画像、通信は同じ origin だけ（`public/_headers`）
 
 ## 6. 配置前に作家がすること（最短）
 
-**(1) D1 の枠を空ける**（アカウントは Arisakagawa。11-08 時点で D1 が無料枠の上限 10 個に達していて `d1 create` が失敗した）。使っていないものを 1 つ消すか、Workers の有料プランにする。
+D1 のデータベース（meet-the-painting）は作ってあり、`wrangler.toml` に紐付け済み。
+
+**(1) 表を作る**（`0001`〜`0003` がまとめて流れる）。
 
 ```bash
 export CLOUDFLARE_ACCOUNT_ID=<Arisakagawa のアカウント ID>
-npx wrangler d1 list
-npx wrangler d1 create meet-the-painting      # 表示された database_id を控える
-```
-
-**(2) `wrangler.toml` の D1 の 5 行のコメントを外し**、`database_id` を入れて、表を作る。
-
-```bash
 npx wrangler d1 migrations apply meet-the-painting --remote
 ```
 
-**(3) Google のクライアント ID を作る**。https://console.cloud.google.com/apis/credentials →「認証情報を作成」→「OAuth クライアント ID」→ 種類「ウェブ アプリケーション」→ 承認済みの JavaScript 生成元に `https://meet.sheerarts.com` を追加（リダイレクト URI は不要）。同意画面を聞かれたら、対象は「外部」、テストユーザーに自分のメールアドレス。
-
-**(4) Secret を 3 つ入れる**（値はリポジトリに書かない）。
+**(2) Secret を 3 つ入れる**。パスワードは作家が自分で決める（12 文字以上）。打っても画面に出ない。パスワードもハッシュも、リポジトリやチャットに書かない。
 
 ```bash
-npx wrangler pages secret put GOOGLE_CLIENT_ID --project-name enter-the-painting
-npx wrangler pages secret put ADMIN_EMAILS --project-name enter-the-painting          # カンマ区切り
+printf '%s' '<自分で決めた ID>' | npx wrangler pages secret put ADMIN_USERNAME --project-name enter-the-painting
+node scripts/admin-password.mjs | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name enter-the-painting
 openssl rand -base64 48 | npx wrangler pages secret put ADMIN_SESSION_SECRET --project-name enter-the-painting
 ```
 
-**(5) 配置**して、`https://meet.sheerarts.com/admin/` を開き、Google でログインする。作品ページに感想カードが出ることと、送った感想が `/admin/` に届くことを本番で 1 回確かめて、その感想を削除する。
+**(3) Anthropic Console で月の spend limit を設定する**（2 節）。
 
-(1)(2) を飛ばして配置しても、感想カードが出ないだけでサイトは今までどおり動く。
+**(4) 配置**して、`https://meet.sheerarts.com/admin/` を開き、ID とパスワードでログインする。作品ページに感想カードが出ることと、送った感想が `/admin/` に届くことを本番で 1 回確かめて、その感想を削除する。
+
+ログインで Cloudflare のエラー（1102、CPU の時間切れ）が出たら、回数を下げて作り直す：`node scripts/admin-password.mjs --iterations 50000 | npx wrangler pages secret put ADMIN_PASSWORD_HASH --project-name enter-the-painting`（無料プランの CPU の上限に PBKDF2 が掛かる場合。本番で 1 回ログインして確かめる）
+
+(1) を飛ばして配置しても、感想カードが出ないだけでサイトは今までどおり動く。
 
 ## 7. ローカルでの確かめ方
 
 ```bash
-cp .dev.vars.example .dev.vars    # テスト用の値。.dev.vars はコミットされない
+node tests/make-dev-vars.mjs > .dev.vars    # その場で作るテスト用の値。.dev.vars はコミットされない
 npm run generate && npm run build
 npx wrangler d1 migrations apply meet-the-painting --local --config tests/wrangler.local.toml --persist-to .wrangler/state
 npx wrangler pages dev dist --d1 DB=local-meet-the-painting --persist-to .wrangler/state --port 8788
 NODE_PATH=<playwright の場所> node tests/admin-e2e.mjs --shots <dir>    # 別の端末で。音は出さない
 ```
 
-ローカルでは Google のログインを通さず、`.dev.vars` のテスト用の秘密で署名した Cookie を Playwright が入れる（`tests/admin-e2e.mjs`）。コードに抜け道は無い。
+`tests/admin-e2e.mjs` は `.dev.vars` のテスト用の ID とパスワードで、本物のログイン画面から入る。コードに抜け道は無い。
 
 ## 8. 受け入れ条件
 
@@ -121,7 +128,7 @@ NODE_PATH=<playwright の場所> node tests/admin-e2e.mjs --shots <dir>    # 別
 2. 体験の最中には出ない。カード以外の画面は、カードが読めなくても今までどおり動く
 3. 送るまで何も保存されない。送った文だけが `/admin/` に出る。送信前に「作家に届きます」と見える
 4. API キーが無くても、定型文と送信で最後まで通る。保存に失敗したら失敗と言う
-5. 不正な署名、aud 違い、期限切れ、許可外メール、未検証メール、Cookie の改ざんは拒否する。設定が欠ければ閉じる
+5. ID 違い、パスワード違い（同じ応答）、ハッシュの破損、別の Origin、Cookie の改ざんは拒否する。15 分に 10 回失敗すると 429。設定が欠ければ閉じる
 6. `/admin/` の感想の本文に `<img onerror>` を送っても、文字として出る
 7. 0 件の状態でも、表と流れが崩れない
 8. ページ用 JS は gzip 20KB 以下、受付は 27KB 以下。`npm test`、`typecheck`、`smoke` が通る

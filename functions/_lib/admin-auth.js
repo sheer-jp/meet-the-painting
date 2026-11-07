@@ -1,10 +1,7 @@
-// 管理ページの認証（docs/ADMIN.md 5 節）。純関数と WebCrypto だけ。Pages Functions のグローバルに触れない（vitest から偽の JWKS でテストする）
+// 管理ページの認証（docs/ADMIN.md 5 節）。ID とパスワード。純関数と WebCrypto だけ。Pages Functions のグローバルに触れない（scripts/admin-password.mjs からも使う）
 
 export const COOKIE_NAME = '__Host-mtp_admin';
 export const SESSION_MS = 24 * 3600_000;
-const JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
-const ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
-const MAX_TOKEN = 8192;
 const MIN_SECRET = 32;
 const enc = new TextEncoder();
 
@@ -22,78 +19,86 @@ function unb64url(s) {
 }
 const jsonOf = (/** @type {string} */ s) => JSON.parse(new TextDecoder().decode(unb64url(s)));
 
-// 許可リスト：カンマ区切り。前後の空白と大文字小文字は見ない
-/** @param {string|undefined} list */
-export function parseAllowlist(list) {
-  return new Set(String(list ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean));
+// ───── パスワード（PBKDF2-SHA256）。形式は pbkdf2$<回数>$<salt>$<hash>（salt と hash は base64url） ─────
+export const PBKDF2_ITERATIONS = 100_000;   // Cloudflare Workers の WebCrypto の上限
+const PBKDF2_MIN = 10_000;
+const SALT_BYTES = 16;
+const HASH_BYTES = 32;
+export const MIN_PASSWORD = 12;
+
+const derive = async (/** @type {string} */ password, /** @type {Uint8Array} */ salt, /** @type {number} */ iterations) => {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password.normalize('NFC')), 'PBKDF2', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, HASH_BYTES * 8));
+};
+
+/** @param {string} password @param {{ iterations?: number, salt?: Uint8Array }} [o] */
+export async function hashPassword(password, o = {}) {
+  const iterations = o.iterations ?? PBKDF2_ITERATIONS;
+  const salt = o.salt ?? crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  return `pbkdf2$${iterations}$${b64url(salt)}$${b64url(await derive(password, salt, iterations))}`;
 }
-/** @param {any} env @param {string} email */
-export function isAllowed(env, email) {
-  return typeof email === 'string' && !!email && parseAllowlist(env?.ADMIN_EMAILS).has(email.trim().toLowerCase());
+
+// 形が正しければ中身を返す。だめなら null（設定が壊れているものとして閉じる）
+/** @param {unknown} stored */
+export function parsePasswordHash(stored) {
+  const m = /^pbkdf2\$(\d{1,7})\$([A-Za-z0-9_-]+)\$([A-Za-z0-9_-]+)$/.exec(String(stored ?? '').trim());
+  if (!m) return null;
+  const iterations = Number(m[1]);
+  if (iterations < PBKDF2_MIN || iterations > PBKDF2_ITERATIONS) return null;
+  try {
+    const salt = unb64url(m[2]), hash = unb64url(m[3]);
+    if (salt.length < SALT_BYTES || hash.length !== HASH_BYTES) return null;
+    return { iterations, salt, hash };
+  } catch { return null; }
+}
+
+// 定数時間の比較（長さで早く抜けない）
+/** @param {Uint8Array} a @param {Uint8Array} b */
+function sameBytes(a, b) {
+  let diff = a.length ^ b.length;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+  return diff === 0;
+}
+// 文字列は SHA-256 にしてから比べる（長さを漏らさない）
+/** @param {string} a @param {string} b */
+async function sameText(a, b) {
+  const [x, y] = await Promise.all([a, b].map((t) => crypto.subtle.digest('SHA-256', enc.encode(t))));
+  return sameBytes(new Uint8Array(x), new Uint8Array(y));
+}
+
+/** @param {string} password @param {string} stored */
+export async function verifyPassword(password, stored) {
+  const p = parsePasswordHash(stored);
+  if (!p) return false;
+  return sameBytes(await derive(password, p.salt, p.iterations), p.hash);
+}
+
+// ID とパスワードの確かめ。ID が違っても同じだけ PBKDF2 を回し、応答も時間も区別しない
+/** @param {any} env @param {string} username @param {string} password */
+export async function checkCredentials(env, username, password) {
+  const [idOk, pwOk] = await Promise.all([sameText(username, String(env?.ADMIN_USERNAME ?? '')), verifyPassword(password, env?.ADMIN_PASSWORD_HASH)]);
+  return idOk && pwOk;
 }
 
 // 設定がそろっているか。欠けていれば閉じる（fail closed）
 /** @param {any} env */
 export function adminConfigured(env) {
-  return !!env?.GOOGLE_CLIENT_ID && parseAllowlist(env?.ADMIN_EMAILS).size > 0 && String(env?.ADMIN_SESSION_SECRET ?? '').length >= MIN_SECRET;
-}
-
-// ───── Google の ID トークン ─────
-// JWKS：isolate の中に持つ（max-age まで、最大 6 時間）。知らない kid は 60 秒に 1 回だけ取り直す（鍵の入れ替えに追いつくため）
-/** @type {{ at: number, ttl: number, keys: any[] } | null} */
-let jwksMemo = null;
-export async function fetchGoogleKeys(force = false, now = Date.now(), doFetch = fetch) {
-  if (jwksMemo && now - jwksMemo.at < (force ? 60_000 : jwksMemo.ttl)) return jwksMemo.keys;
-  const res = await doFetch(JWKS_URL);
-  if (!res.ok) { console.error('Google の公開鍵を取得できない', res.status); throw new Error(`jwks ${res.status}`); }
-  const data = await res.json();
-  const m = /max-age=(\d+)/.exec(res.headers.get('cache-control') || '');
-  jwksMemo = { at: now, ttl: Math.min(m ? Number(m[1]) * 1000 : 3600_000, 6 * 3600_000), keys: Array.isArray(data?.keys) ? data.keys : [] };
-  return jwksMemo.keys;
-}
-
-/**
- * ID トークンを検証して { email } を返す。だめなら null（理由は外に出さない）
- * @param {string} token
- * @param {{ clientId: string, getKeys?: (force: boolean) => Promise<any[]>, now?: number }} o
- */
-export async function verifyGoogleIdToken(token, o) {
-  const { clientId, getKeys = fetchGoogleKeys, now = Date.now() } = o;
-  if (!clientId || typeof token !== 'string' || token.length > MAX_TOKEN) return null;
-  const parts = token.split('.');
-  if (parts.length !== 3) return null;
-  try {
-    const header = jsonOf(parts[0]);
-    if (header?.alg !== 'RS256' || typeof header.kid !== 'string') return null;   // none や HS256 への差し替えを通さない
-    let jwk = (await getKeys(false)).find((k) => k.kid === header.kid);
-    if (!jwk) jwk = (await getKeys(true)).find((k) => k.kid === header.kid);
-    if (!jwk || jwk.kty !== 'RSA') return null;
-    const key = await crypto.subtle.importKey('jwk', { kty: 'RSA', n: jwk.n, e: jwk.e, alg: 'RS256', ext: true }, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
-    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, unb64url(parts[2]), enc.encode(`${parts[0]}.${parts[1]}`));
-    if (!ok) return null;
-    const p = jsonOf(parts[1]);
-    if (!ISSUERS.includes(p?.iss)) return null;
-    if (p.aud !== clientId) return null;
-    if (typeof p.exp !== 'number' || p.exp * 1000 <= now) return null;
-    if (typeof p.nbf === 'number' && p.nbf * 1000 > now + 60_000) return null;
-    if (p.email_verified !== true) return null;
-    if (typeof p.email !== 'string' || !p.email) return null;
-    return { email: p.email };
-  } catch { return null; }
+  return !!String(env?.ADMIN_USERNAME ?? '').trim() && !!parsePasswordHash(env?.ADMIN_PASSWORD_HASH) && String(env?.ADMIN_SESSION_SECRET ?? '').length >= MIN_SECRET;
 }
 
 // ───── セッションの Cookie：<payload>.<HMAC> ─────
 /** @param {string} secret */
 const hmacKey = (secret) => crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 
-/** @param {string} email @param {string} secret @param {number} [now] */
-export async function signSession(email, secret, now = Date.now()) {
-  const payload = b64url(enc.encode(JSON.stringify({ e: email, x: now + SESSION_MS, n: b64url(crypto.getRandomValues(new Uint8Array(9))) })));
+/** @param {string} name @param {string} secret @param {number} [now] */
+export async function signSession(name, secret, now = Date.now()) {
+  const payload = b64url(enc.encode(JSON.stringify({ e: name, x: now + SESSION_MS, n: b64url(crypto.getRandomValues(new Uint8Array(9))) })));
   const sig = await crypto.subtle.sign('HMAC', await hmacKey(secret), enc.encode(payload));
   return `${payload}.${b64url(sig)}`;
 }
 
-/** 署名と期限を確かめて email を返す。だめなら null @param {string|null|undefined} value @param {string} secret @param {number} [now] */
+/** 署名と期限を確かめて ID を返す。だめなら null @param {string|null|undefined} value @param {string} secret @param {number} [now] */
 export async function verifySession(value, secret, now = Date.now()) {
   if (!value || !secret || String(secret).length < MIN_SECRET || value.length > 1024) return null;
   const i = value.lastIndexOf('.');
@@ -129,12 +134,12 @@ export function sameOriginWrite(req) {
   return !site || site === 'same-origin';
 }
 
-// Cookie から管理者を決める。署名、期限、許可リストを毎回見る
+// Cookie から管理者を決める。署名、期限、いまの ID と同じかを毎回見る（ID を変えれば古い Cookie は切れる）
 /** @param {Request} req @param {any} env */
 export async function currentAdmin(req, env) {
   if (!adminConfigured(env)) return null;
-  const email = await verifySession(readCookie(req), env.ADMIN_SESSION_SECRET);
-  return email && isAllowed(env, email) ? { email } : null;
+  const name = await verifySession(readCookie(req), env.ADMIN_SESSION_SECRET);
+  return name && await sameText(name, env.ADMIN_USERNAME) ? { name } : null;
 }
 
 // 管理の API の応答に必ず付けるヘッダ
@@ -171,4 +176,65 @@ export function ipKey(ip) {
 export function bodyTooLarge(req, max) {
   const n = Number(req.headers.get('Content-Length'));
   return Number.isFinite(n) && n > max;
+}
+
+// ───── ログインの失敗の回数（総当たり対策）。IP の /64 ごとに 15 分で 10 回まで ─────
+// isolate のメモリ（IP の鍵）と、D1（無ければ KV）の短命の数（日替わりの salt でハッシュした鍵）の両方で数える。生の IP は保存しない
+export const LOGIN_MAX_FAILS = 10;
+export const LOGIN_WINDOW_MS = 15 * 60_000;
+const memFails = new Map();
+const memCount = (/** @type {string} */ key, /** @type {number} */ now) => { const e = memFails.get(key); return e && now - e.start < LOGIN_WINDOW_MS ? e.n : 0; };
+function memAdd(/** @type {string} */ key, /** @type {number} */ now) {
+  if (memFails.size > 5000) for (const [k, v] of memFails) if (now - v.start >= LOGIN_WINDOW_MS) memFails.delete(k);
+  const e = memFails.get(key);
+  if (!e || now - e.start >= LOGIN_WINDOW_MS) memFails.set(key, { start: now, n: 1 }); else e.n++;
+}
+export function resetLoginMemory() { memFails.clear(); }
+
+// 日替わりの鍵：HMAC(秘密, 日付 + IP の /64)。秘密と日付が無ければ元の IP に戻せない
+/** @param {any} env @param {string} ip @param {number} now */
+async function failKey(env, ip, now) {
+  const day = new Date(now + 9 * 3600_000).toISOString().slice(0, 10);
+  const sig = await crypto.subtle.sign('HMAC', await hmacKey(`login-fail:${env.ADMIN_SESSION_SECRET}`), enc.encode(`${day}|${ip}`));
+  return b64url(sig).slice(0, 32);
+}
+/** 保存先の数を読む。読めなければ null（メモリの数だけで守る）@param {any} env @param {string} key @param {number} now */
+async function storedFails(env, key, now) {
+  try {
+    if (env.DB) { const r = await env.DB.prepare('SELECT n FROM login_failures WHERE key = ? AND first_at > ?').bind(key, now - LOGIN_WINDOW_MS).first(); return r?.n ?? 0; }
+    if (env.STATS) return parseInt(await env.STATS.get(`lf:${key}`), 10) || 0;
+  } catch { console.error('ログインの失敗の数を読めない'); }
+  return null;
+}
+/** ブロック中か @param {any} env @param {string|null} ip @param {number} [now] */
+export async function loginBlocked(env, ip, now = Date.now()) {
+  const raw = ipKey(ip);
+  if (memCount(raw, now) >= LOGIN_MAX_FAILS) return true;
+  return ((await storedFails(env, await failKey(env, raw, now), now)) ?? 0) >= LOGIN_MAX_FAILS;
+}
+/** 失敗を 1 回数える。期限の切れた行はこのときに消す @param {any} env @param {string|null} ip @param {number} [now] */
+export async function recordLoginFailure(env, ip, now = Date.now()) {
+  const raw = ipKey(ip);
+  memAdd(raw, now);
+  const key = await failKey(env, raw, now);
+  try {
+    if (env.DB) {
+      const old = now - LOGIN_WINDOW_MS;
+      await env.DB.prepare('DELETE FROM login_failures WHERE first_at <= ?').bind(old).run();
+      await env.DB.prepare('INSERT INTO login_failures (key, first_at, n) VALUES (?, ?, 1) ON CONFLICT (key) DO UPDATE SET n = n + 1').bind(key, now).run();
+    } else if (env.STATS) {
+      const n = (parseInt(await env.STATS.get(`lf:${key}`), 10) || 0) + 1;
+      await env.STATS.put(`lf:${key}`, String(n), { expirationTtl: LOGIN_WINDOW_MS / 1000 });
+    }
+  } catch { console.error('ログインの失敗の数を書けない'); }
+}
+/** 成功したら数を消す @param {any} env @param {string|null} ip @param {number} [now] */
+export async function clearLoginFailures(env, ip, now = Date.now()) {
+  const raw = ipKey(ip);
+  memFails.delete(raw);
+  const key = await failKey(env, raw, now);
+  try {
+    if (env.DB) await env.DB.prepare('DELETE FROM login_failures WHERE key = ?').bind(key).run();
+    else if (env.STATS) await env.STATS.delete(`lf:${key}`);
+  } catch { console.error('ログインの失敗の数を消せない'); }
 }

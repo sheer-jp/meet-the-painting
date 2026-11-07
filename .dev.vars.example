@@ -1,4 +1,6 @@
-# ローカル確認用（docs/ADMIN.md 7 節）。cp .dev.vars.example .dev.vars。本物の値を入れない。.dev.vars はコミットされない
-GOOGLE_CLIENT_ID=local-test-client.apps.googleusercontent.com
-ADMIN_EMAILS=owner@example.test
-ADMIN_SESSION_SECRET=local-test-secret-do-not-use-in-production-000000
+# ローカル確認用（docs/ADMIN.md 7 節）。本物の値を入れない。.dev.vars はコミットされない
+# 中身はその都度作る：node tests/make-dev-vars.mjs > .dev.vars
+# ADMIN_USERNAME=<テスト用の ID>
+# ADMIN_PASSWORD_HASH=<scripts/admin-password.mjs の形式>
+# ADMIN_SESSION_SECRET=<32 文字以上>
+# ADMIN_E2E_PASSWORD=<tests/admin-e2e.mjs がログインに使う、その場で作ったテスト用のパスワード>

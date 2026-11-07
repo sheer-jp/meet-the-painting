@@ -36,7 +36,7 @@
   <h2>外のサービス</h2>
   <ul><li>Cloudflare：このサイトの置き場所です。ページの閲覧数を Cloudflare Web Analytics で見ています。Cookie は使いません</li><li>Claude API（Anthropic）：受付の会話と感想カードの返事を作るために、書いた文を渡します</li><li>Google Fonts：文字の書体を読み込みます</li></ul>
   <h2>残さないもの</h2>
-  <ul><li>受付の会話で書いた文、感想カードで書いて送らなかった文。返事を作るために Claude API へ渡しますが、このサイトには保存しません</li><li>IP アドレス、メールアドレス、ブラウザの種類（User-Agent）、位置。IP アドレスは短い時間の回数制限のためメモリの中で数えるだけで、書き残しません</li></ul>
+  <ul><li>受付の会話で書いた文、感想カードで書いて送らなかった文。返事を作るために Claude API へ渡しますが、このサイトには保存しません</li><li>IP アドレス、メールアドレス、ブラウザの種類（User-Agent）、位置。IP アドレスは短い時間の回数制限のためメモリの中で数えるだけで、書き残しません（管理ページのログインに失敗したときだけ、元に戻せない形にした値を 15 分残します）</li></ul>
   <p class="back"><a href="/">← 受付に戻る</a></p>
 </section>
 <section lang="en" data-lang="en">
@@ -54,7 +54,7 @@
   <h2>Outside services</h2>
   <ul><li>Cloudflare hosts this site. Page views are measured with Cloudflare Web Analytics, which uses no cookies</li><li>Claude API (Anthropic) receives what you write, to make the replies in the reception and on the feedback card</li><li>Google Fonts provides the typefaces</li></ul>
   <h2>Not kept</h2>
-  <ul><li>What you type in the reception chat, and anything you write on the feedback card but do not send. It goes to the Claude API to make a reply, but this site does not save it</li><li>IP address, email address, browser type (User-Agent), or location. The IP address is only counted in memory for short-term rate limits and is never written down</li></ul>
+  <ul><li>What you type in the reception chat, and anything you write on the feedback card but do not send. It goes to the Claude API to make a reply, but this site does not save it</li><li>IP address, email address, browser type (User-Agent), or location. The IP address is only counted in memory for short-term rate limits and is never written down (only after a failed login to the admin page, a one-way value that cannot be turned back is kept for 15 minutes)</li></ul>
   <p class="back"><a href="/">← Back to the reception</a></p>
 </section>
 <section lang="zh-Hans" data-lang="zh-Hans">
@@ -72,7 +72,7 @@
   <h2>外部服务</h2>
   <ul><li>Cloudflare：本站的托管方。用 Cloudflare Web Analytics 查看浏览量，不使用 Cookie</li><li>Claude API（Anthropic）：为了生成接待和感想卡片的回复，会传送您写的文字</li><li>Google Fonts：加载字体</li></ul>
   <h2>不保留的内容</h2>
-  <ul><li>在接待对话中写的文字，以及在感想卡片上写了但没有发送的文字。为生成回复会传给 Claude API，但本站不保存</li><li>IP 地址、电子邮件地址、浏览器类型（User-Agent）、位置。IP 地址仅在内存中用于短时间的次数限制，不会写下来</li></ul>
+  <ul><li>在接待对话中写的文字，以及在感想卡片上写了但没有发送的文字。为生成回复会传给 Claude API，但本站不保存</li><li>IP 地址、电子邮件地址、浏览器类型（User-Agent）、位置。IP 地址仅在内存中用于短时间的次数限制，不会写下来（仅在管理页面登录失败时，保留无法还原的值 15 分钟）</li></ul>
   <p class="back"><a href="/">← 返回接待页</a></p>
 </section>
 <section lang="zh-Hant" data-lang="zh-Hant">
@@ -90,7 +90,7 @@
   <h2>外部服務</h2>
   <ul><li>Cloudflare：本站的託管方。用 Cloudflare Web Analytics 查看瀏覽量，不使用 Cookie</li><li>Claude API（Anthropic）：為了產生接待和感想卡片的回覆，會傳送您寫的文字</li><li>Google Fonts：載入字體</li></ul>
   <h2>不保留的內容</h2>
-  <ul><li>在接待對話中寫的文字，以及在感想卡片上寫了但沒有送出的文字。為產生回覆會傳給 Claude API，但本站不保存</li><li>IP 位址、電子郵件地址、瀏覽器類型（User-Agent）、位置。IP 位址僅在記憶體中用於短時間的次數限制，不會寫下來</li></ul>
+  <ul><li>在接待對話中寫的文字，以及在感想卡片上寫了但沒有送出的文字。為產生回覆會傳給 Claude API，但本站不保存</li><li>IP 位址、電子郵件地址、瀏覽器類型（User-Agent）、位置。IP 位址僅在記憶體中用於短時間的次數限制，不會寫下來（僅在管理頁面登入失敗時，保留無法還原的值 15 分鐘）</li></ul>
   <p class="back"><a href="/">← 返回接待頁</a></p>
 </section>
 <section lang="ko" data-lang="ko">
@@ -108,7 +108,7 @@
   <h2>외부 서비스</h2>
   <ul><li>Cloudflare: 이 사이트를 두는 곳입니다. 페이지 조회 수를 Cloudflare Web Analytics로 봅니다. 쿠키는 쓰지 않아요</li><li>Claude API(Anthropic): 안내와 감상 카드의 답장을 만들기 위해 쓴 글을 전달합니다</li><li>Google Fonts: 글꼴을 불러옵니다</li></ul>
   <h2>남기지 않는 것</h2>
-  <ul><li>안내 대화에서 쓴 글, 감상 카드에 썼지만 보내지 않은 글. 답장을 만들기 위해 Claude API에 전달하지만 이 사이트에는 저장하지 않아요</li><li>IP 주소, 이메일 주소, 브라우저 종류(User-Agent), 위치. IP 주소는 짧은 시간의 횟수 제한을 위해 메모리에서 셀 뿐, 기록하지 않습니다</li></ul>
+  <ul><li>안내 대화에서 쓴 글, 감상 카드에 썼지만 보내지 않은 글. 답장을 만들기 위해 Claude API에 전달하지만 이 사이트에는 저장하지 않아요</li><li>IP 주소, 이메일 주소, 브라우저 종류(User-Agent), 위치. IP 주소는 짧은 시간의 횟수 제한을 위해 메모리에서 셀 뿐, 기록하지 않습니다(관리 페이지 로그인에 실패했을 때만, 되돌릴 수 없는 값을 15분간 남깁니다)</li></ul>
   <p class="back"><a href="/">← 안내 화면으로 돌아가기</a></p>
 </section>
 <section lang="fr" data-lang="fr">
@@ -126,7 +126,7 @@
   <h2>Services extérieurs</h2>
   <ul><li>Cloudflare héberge ce site. Les pages vues sont mesurées avec Cloudflare Web Analytics, sans cookie</li><li>L'API Claude (Anthropic) reçoit ce que vous écrivez, pour rédiger les réponses de l'accueil et de la carte</li><li>Google Fonts fournit les polices</li></ul>
   <h2>Non conservé</h2>
-  <ul><li>Ce que vous écrivez dans la conversation d'accueil, et ce que vous écrivez sur la carte sans l'envoyer. Cela passe par l'API Claude pour la réponse, mais ce site ne l'enregistre pas</li><li>Adresse IP, adresse e-mail, type de navigateur (User-Agent), position. L'adresse IP n'est comptée qu'en mémoire pour limiter le débit à court terme, et n'est jamais écrite</li></ul>
+  <ul><li>Ce que vous écrivez dans la conversation d'accueil, et ce que vous écrivez sur la carte sans l'envoyer. Cela passe par l'API Claude pour la réponse, mais ce site ne l'enregistre pas</li><li>Adresse IP, adresse e-mail, type de navigateur (User-Agent), position. L'adresse IP n'est comptée qu'en mémoire pour limiter le débit à court terme, et n'est jamais écrite (seulement après un échec de connexion à la page d'administration, une valeur irréversible est gardée 15 minutes)</li></ul>
   <p class="back"><a href="/">← Retour à l'accueil</a></p>
 </section>
 <section lang="de" data-lang="de">
@@ -144,7 +144,7 @@
   <h2>Externe Dienste</h2>
   <ul><li>Cloudflare hostet diese Seite. Seitenaufrufe misst Cloudflare Web Analytics, ohne Cookies</li><li>Die Claude API (Anthropic) erhält, was du schreibst, um die Antworten am Empfang und auf der Karte zu verfassen</li><li>Google Fonts liefert die Schriften</li></ul>
   <h2>Nicht aufbewahrt</h2>
-  <ul><li>Was du im Empfangsgespräch schreibst und was du auf der Karte schreibst, aber nicht sendest. Es geht für die Antwort an die Claude API, diese Seite speichert es nicht</li><li>IP-Adresse, E-Mail-Adresse, Browsertyp (User-Agent), Standort. Die IP-Adresse wird nur im Arbeitsspeicher für kurzfristige Limits gezählt und nie niedergeschrieben</li></ul>
+  <ul><li>Was du im Empfangsgespräch schreibst und was du auf der Karte schreibst, aber nicht sendest. Es geht für die Antwort an die Claude API, diese Seite speichert es nicht</li><li>IP-Adresse, E-Mail-Adresse, Browsertyp (User-Agent), Standort. Die IP-Adresse wird nur im Arbeitsspeicher für kurzfristige Limits gezählt und nie niedergeschrieben (nur nach einer fehlgeschlagenen Anmeldung auf der Verwaltungsseite bleibt 15 Minuten ein nicht umkehrbarer Wert)</li></ul>
   <p class="back"><a href="/">← Zurück zum Empfang</a></p>
 </section>
 <section lang="es" data-lang="es">
@@ -162,7 +162,7 @@
   <h2>Servicios externos</h2>
   <ul><li>Cloudflare aloja este sitio. Las visitas se miden con Cloudflare Web Analytics, sin cookies</li><li>La API de Claude (Anthropic) recibe lo que escribes para redactar las respuestas de la recepción y de la tarjeta</li><li>Google Fonts proporciona las tipografías</li></ul>
   <h2>No se guarda</h2>
-  <ul><li>Lo que escribes en la conversación de recepción y lo que escribes en la tarjeta sin enviarlo. Pasa por la API de Claude para responder, pero este sitio no lo guarda</li><li>Dirección IP, correo electrónico, tipo de navegador (User-Agent), ubicación. La IP solo se cuenta en memoria para límites de corta duración y nunca se anota</li></ul>
+  <ul><li>Lo que escribes en la conversación de recepción y lo que escribes en la tarjeta sin enviarlo. Pasa por la API de Claude para responder, pero este sitio no lo guarda</li><li>Dirección IP, correo electrónico, tipo de navegador (User-Agent), ubicación. La IP solo se cuenta en memoria para límites de corta duración y nunca se anota (solo tras un inicio de sesión fallido en la página de administración, se guarda 15 minutos un valor irreversible)</li></ul>
   <p class="back"><a href="/">← Volver a la recepción</a></p>
 </section>
 <section lang="it" data-lang="it">
@@ -180,7 +180,7 @@
   <h2>Servizi esterni</h2>
   <ul><li>Cloudflare ospita questo sito. Le visite sono misurate con Cloudflare Web Analytics, senza cookie</li><li>L'API Claude (Anthropic) riceve ciò che scrivi per comporre le risposte dell'accoglienza e della scheda</li><li>Google Fonts fornisce i caratteri</li></ul>
   <h2>Non conservato</h2>
-  <ul><li>Ciò che scrivi nella conversazione di accoglienza e ciò che scrivi sulla scheda senza inviarlo. Passa dall'API Claude per la risposta, ma questo sito non lo salva</li><li>Indirizzo IP, e-mail, tipo di browser (User-Agent), posizione. L'IP è contato solo in memoria per limiti a breve termine e non viene mai scritto</li></ul>
+  <ul><li>Ciò che scrivi nella conversazione di accoglienza e ciò che scrivi sulla scheda senza inviarlo. Passa dall'API Claude per la risposta, ma questo sito non lo salva</li><li>Indirizzo IP, e-mail, tipo di browser (User-Agent), posizione. L'IP è contato solo in memoria per limiti a breve termine e non viene mai scritto (solo dopo un accesso non riuscito alla pagina di gestione, un valore irreversibile resta per 15 minuti)</li></ul>
   <p class="back"><a href="/">← Torna all'accoglienza</a></p>
 </section>
 <section lang="pt" data-lang="pt">
@@ -198,7 +198,7 @@
   <h2>Serviços externos</h2>
   <ul><li>A Cloudflare aloja este site. As visitas são medidas com Cloudflare Web Analytics, sem cookies</li><li>A API Claude (Anthropic) recebe o que escreve, para redigir as respostas da receção e do cartão</li><li>O Google Fonts fornece os tipos de letra</li></ul>
   <h2>Não guardado</h2>
-  <ul><li>O que escreve na conversa da receção e o que escreve no cartão sem enviar. Passa pela API Claude para a resposta, mas este site não guarda</li><li>Endereço IP, e-mail, tipo de navegador (User-Agent), localização. O IP é apenas contado em memória para limites de curta duração e nunca é escrito</li></ul>
+  <ul><li>O que escreve na conversa da receção e o que escreve no cartão sem enviar. Passa pela API Claude para a resposta, mas este site não guarda</li><li>Endereço IP, e-mail, tipo de navegador (User-Agent), localização. O IP é apenas contado em memória para limites de curta duração e nunca é escrito (apenas após um início de sessão falhado na página de administração, um valor irreversível fica 15 minutos)</li></ul>
   <p class="back"><a href="/">← Voltar à receção</a></p>
 </section>
 <script>

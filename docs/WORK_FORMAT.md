@@ -86,6 +86,8 @@ works/<id>/
 }
 ```
 
+**物語の公開**：`generated/stories.json` の物語は、作家が確認して `"story_approved": true` を `work.json` に書くまで公開されない（ページ、`space.json`、カタログ、案内役のどれにも出ない）。下書きの印「（下書き。作家が自分の言葉に直す）」を消すこと（残っていると印があっても出ない。DECISIONS 73）。
+
 ## 生成されるもの（`works/<id>/generated/`）
 
 | ファイル | 内容 |

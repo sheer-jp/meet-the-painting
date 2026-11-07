@@ -39,71 +39,64 @@ async function api(path, init) {
 }
 
 // ───── ログイン ─────
-function showLogin(config, error) {
-  const err = h('p', { class: 'err', role: 'alert', text: error || '' });
-  err.hidden = !error;
-  const btn = h('div', { id: 'gbtn' });
+function showLogin(notice) {
+  const err = h('p', { class: 'err', role: 'alert', text: notice || '' });
+  err.hidden = !notice;
+  const user = h('input', { id: 'login-id', name: 'username', type: 'text', autocomplete: 'username', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', enterkeyhint: 'next', required: true, maxlength: 512 });
+  const pass = h('input', { id: 'login-pw', name: 'password', type: 'password', autocomplete: 'current-password', enterkeyhint: 'go', required: true, maxlength: 512 });
+  const send = h('button', { type: 'submit', class: 'login-send', text: 'ログイン' });
+  let busy = false;
+  const form = h('form', { class: 'login-form', method: 'post', action: '#', onsubmit: async (e) => {
+    e.preventDefault();
+    if (busy) return;   // 二度押ししない
+    if (!user.value.trim() || !pass.value) { (user.value.trim() ? pass : user).focus(); return; }
+    busy = true; send.disabled = true; send.textContent = '確かめています'; err.hidden = true;
+    try {
+      await api('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user.value.trim(), password: pass.value }) });
+      pass.value = '';
+      void boot();
+      return;
+    } catch (ex) {
+      err.textContent = ex instanceof Unauthorized ? 'ID かパスワードが違います'
+        : ex.status === 429 ? '試した回数が多いので、15 分ほど待ってからもう一度お試しください。'
+        : 'いまログインできません。時間をおいてもう一度お試しください。';
+      err.hidden = false;
+      pass.value = '';
+      pass.focus();
+    }
+    busy = false; send.disabled = false; send.textContent = 'ログイン';
+  } },
+    h('label', { for: 'login-id', text: 'ID' }), user,
+    h('label', { for: 'login-pw', text: 'パスワード' }), pass,
+    send, err);
   app.replaceChildren(h('div', { class: 'login' },
     h('h1', { text: '絵と出会う 管理' }),
-    h('p', { text: '作家専用のページです。登録したメールアドレスの Google アカウントでログインしてください。' }),
-    btn, err));
-  const fail = (m) => { err.textContent = m; err.hidden = false; };
-  const render = () => {
-    window.google.accounts.id.initialize({
-      client_id: config.clientId,
-      auto_select: false,
-      callback: async ({ credential }) => {
-        try {
-          await api('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential }) });
-          void boot();
-        } catch (e) {
-          if (e.message === 'not_allowed') fail('このメールアドレスでは見られません。');
-          else fail('ログインできませんでした。もう一度お試しください。');
-        }
-      },
-    });
-    window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ja', shape: 'rectangular' });
-  };
-  // Google のスクリプトは 1 回だけ足す（期限切れでログインに戻ったときに重ねない）
-  if (window.google?.accounts?.id) { render(); return; }
-  const GIS = 'https://accounts.google.com/gsi/client';
-  let script = document.querySelector(`script[src="${GIS}"]`);
-  if (!script) {
-    script = document.createElement('script');
-    script.src = GIS;
-    script.async = true;
-    document.head.append(script);
-  }
-  script.addEventListener('error', () => fail('Google のログインを読み込めませんでした。時間をおいて開き直してください。'), { once: true });
-  script.addEventListener('load', render, { once: true });
+    h('p', { text: '作家専用のページです。' }),
+    form));
+  user.focus();
 }
+
+// サーバーの不調を「設定がまだ」と言わない
+const showDown = () => app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
 
 async function boot() {
   try {
     const me = await api('/api/admin/me');
-    showDashboard(me.email);
+    showDashboard(me.name);
   } catch (e) {
     let config = null;
-    try { config = await api('/api/admin/config'); } catch {
-      // サーバーの不調を「設定がまだ」と言わない
-      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
-      return;
-    }
-    if (e?.status === 503 && e?.message !== 'not_configured' && config?.configured) {
-      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
-      return;
-    }
+    try { config = await api('/api/admin/config'); } catch { showDown(); return; }
     if (!config?.configured) {
-      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { text: '管理ページの設定がまだ終わっていないので、いまは誰も入れません。手順はリポジトリの docs/ADMIN.md 6 節にあります。' })));
+      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { text: '管理ページの設定がまだ終わっていないので、いまは誰も入れません。手順は docs/ADMIN.md 6 節です。' })));
       return;
     }
-    if (e instanceof Unauthorized) { showLogin(config); return; }
-    showLogin(config, '読み込めませんでした。もう一度お試しください。');
+    if (e instanceof Unauthorized) { showLogin(); return; }
+    showDown();
   }
 }
 
 // ───── ダッシュボード ─────
-function showDashboard(email) {
+function showDashboard(name) {
   const state = { days: 30, work: '', reaction: '', works: [], titles: new Map(), images: new Map() };
   const period = h('div', { class: 'period', role: 'group', 'aria-label': '期間' }, h('span', { text: '期間' }), DAYS.map((d) => h('button', {
     type: 'button', 'data-days': d, 'aria-pressed': String(d === state.days), text: d === 180 ? '180 日（感想は全部）' : `${d} 日`,
@@ -120,7 +113,7 @@ function showDashboard(email) {
     h('option', { value: '', text: 'すべて' }), Object.entries(REACTIONS).map(([v, t]) => h('option', { value: v, text: t })));
 
   app.replaceChildren(
-    h('header', { class: 'top' }, h('h1', { text: '絵と出会う 管理' }), h('span', { class: 'who', text: email }),
+    h('header', { class: 'top' }, h('h1', { text: '絵と出会う 管理' }), h('span', { class: 'who', text: name }),
       h('button', { type: 'button', class: 'text-btn', text: 'ログアウト', onclick: async () => { await api('/api/admin/logout', { method: 'POST' }).catch(() => {}); location.reload(); } })),
     period, notice, kpis,
     h('section', { id: 'fb' }, h('h2', { text: '届いた感想' }), h('p', { class: 'sub', text: '訪れた人が「作家に届ける」を押した文だけです。日時は日本時間。' }),
@@ -130,7 +123,7 @@ function showDashboard(email) {
     h('section', { id: 'flow' }, h('h2', { text: '会話の流れ' }), h('p', { class: 'sub', text: '受付で話した会話が、どこを通ってどこまで進んだか。線の太さが会話の数です。線や棒に重ねると数が出ます。1 つの会話につき、いちばん先まで進んだところで数えます。' }), flowBox),
   );
 
-  const unauthorized = async () => { const c = await api('/api/admin/config').catch(() => null); if (c?.configured) showLogin(c, 'ログインの期限が切れました。もう一度ログインしてください。'); };
+  const unauthorized = async () => { const c = await api('/api/admin/config').catch(() => null); if (c?.configured) showLogin('ログインの期限が切れました。もう一度ログインしてください。'); };
 
   // 期間を続けて切り替えたとき、古い応答で上書きしない
   let loadSeq = 0, fbSeq = 0;
@@ -313,7 +306,7 @@ function showDashboard(email) {
       barList('案内役の問い', d.questions, { muted: isOther, empty: 'まだありません。' }),
       h('div', {},
         barList('押された選択肢', d.openers, { muted: isOther, empty: 'まだありません。' }),
-        h('p', { class: 'sub', style: 'margin-top:10px', text: `自由入力：${t.free} 回（文は保存していません）　「別のにする」：${t.others} 回` })),
+        h('p', { class: 'sub sub-gap', text: `自由入力：${t.free} 回（文は保存していません）　「別のにする」：${t.others} 回` })),
       barList('感想の反応', d.reactions, { label: (l) => REACTIONS[l] || l, empty: 'まだありません。' }),
       barList('言語（訪れたタブの数）', d.langs, { label: (l) => LANGS[l] || l, empty: 'まだありません。' }),
     ));

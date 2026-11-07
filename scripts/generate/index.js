@@ -113,7 +113,7 @@ async function generateWork(id) {
     writeFileSync(storyPath, JSON.stringify(stories, null, 2) + '\n');
     console.log('  小さな物語を下書きした → generated/stories.json（作家が直す）');
   }
-  // 公開するのは作家が確認した物語だけ（work.json の story_approved。DECISIONS 70）。下書きは訳さず、space.json・ページ・カタログ・案内役に渡さない
+  // 公開するのは作家が確認した物語だけ（work.json の story_approved。DECISIONS 73）。下書きは訳さず、space.json・ページ・カタログ・案内役に渡さない
   const story = publishedStory(work, stories);
   if (story) texts.push({ ja: story.ja, en: story.en });
   else if (stories.ja) console.log('  小さな物語は未確認なので公開しない（確認したら work.json に "story_approved": true）');
