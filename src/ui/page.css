@@ -291,6 +291,7 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 /* 背の低い縦画面（iPhone SE など、高さ 700px 以下）：迎えの状態は 25%（あいさつ 2 文と 4 つのボタンが入りきるように） */
 @media (max-height: 700px) and (orientation: portrait) { .cg { --cg-host: 21%; } .cg:not(.is-talk) .cg-foot { margin-top: 8px; } .cg:not(.is-talk) .cg-thread { gap: 6px; padding-top: 4px; } .cg:not(.is-talk) .cg-line { padding-block: 6px; } }   /* P-16 で 26% → 25%。11-07 FIX-B（AUDIT-1 P1-2）：390×664 で最初の 1 文と選択肢が窓に収まるよう 23% */
 .cg.is-talk { --cg-host: 15%; }
+@media (max-height: 700px) and (orientation: portrait) { .cg.is-talk { --cg-host: 14%; } }
 .cg.is-talk.is-kb, .cg.is-kb { --cg-host: 12%; }
 /* PC・横向きも同じ「上に人、下に会話」（11-06 作家「パソコンでも同じ感じで」）。幅は 640px に抑えて中央に。人の高さは px で上限 */
 @media (min-width: 640px) {

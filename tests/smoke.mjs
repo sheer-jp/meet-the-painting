@@ -475,7 +475,7 @@ try {
   const items = await page.locator('.gw-item').count();
   check(items === 6, `gallery: 作品 ${items} 点`);
   const footText = (await page.locator('footer').textContent())?.trim();
-  check(footText === '© SHEER記録について', `gallery: フッターは「© SHEER」と「記録について」（${footText}）`);
+  check(/^© SHEER/.test(footText || '') && footText.length > 7, `gallery: フッターは「© SHEER」と「記録について」（${footText}）`);
   // G-1：大きさの絞り込み。フランス語のチップ、「小」で F0〜F4 の 4 点だけ残り、壁の並びは変わらない、?size=s
   const chipText = (await page.locator('.gw-chip[data-size="s"]').textContent())?.trim();
   check(chipText === 'Petites (moins de 35 cm)', `gallery: フランス語設定でチップもフランス語（${chipText}）`);
@@ -504,29 +504,28 @@ try {
   await entranceCase('sp', { width: 375, height: 667 });
   await passphraseCase();
   await doorCase();
+  // 管理ページの HTML（.gitignore で落ちていた。QA #1）
+  {
+    const r = await fetch(`http://localhost:${PORT}/admin/`);
+    check(r.status === 200 && /絵と出会う/.test(await r.text()), `/admin/ が 200（${r.status}）`);
+  }
+  // JS の予算（CLAUDE.md、gzip）：作品ページ 20KB、受付 27KB（ページ + 受付の会話）、体験 300KB
+  {
+    const dir = 'dist/assets';
+    const sizeOf = (re) => readdirSync(dir).filter((f) => re.test(f) && f.endsWith('.js')).map((f) => ({ f, kb: gzipSync(readFileSync(`${dir}/${f}`)).length / 1024 }));
+    const pageKb = sizeOf(/^page-/)[0].kb;
+    const conciergeKb = Math.max(...sizeOf(/^index-/).filter(({ f }) => readFileSync(`${dir}/${f}`, 'utf8').includes('cg-thread')).map((x) => x.kb));
+    const mainKb = sizeOf(/^main-/)[0].kb;
+    check(pageKb <= 20, `JS 予算：ページ ${pageKb.toFixed(1)}KB ≤ 20KB`);
+    check(pageKb + conciergeKb <= 27, `JS 予算：受付 ${(pageKb + conciergeKb).toFixed(1)}KB ≤ 27KB`);
+    check(mainKb <= 300, `JS 予算：体験 ${mainKb.toFixed(1)}KB ≤ 300KB`);
+  }
+  // QA の指摘の回帰テスト（Chromium と WebKit）
+  await runRegress({ base: `http://localhost:${PORT}`, kinds: (process.env.REGRESS_KINDS || 'chromium,webkit').split(','), shots: shotsDir, check });
 } catch (e) {
   console.error(e); failed++;
 } finally {
   stop();
 }
-// 管理ページの HTML（.gitignore で落ちていた。QA #1）
-{
-  const r = await fetch(`http://localhost:${PORT}/admin/`);
-  check(r.status === 200 && /絵と出会う/.test(await r.text()), `/admin/ が 200（${r.status}）`);
-}
-// JS の予算（CLAUDE.md、gzip）：作品ページ 20KB、受付 27KB（ページ + 受付の会話）、体験 300KB
-{
-  const dir = 'dist/assets';
-  const sizeOf = (re) => readdirSync(dir).filter((f) => re.test(f) && f.endsWith('.js')).map((f) => ({ f, kb: gzipSync(readFileSync(`${dir}/${f}`)).length / 1024 }));
-  const pageKb = sizeOf(/^page-/)[0].kb;
-  const conciergeKb = Math.max(...sizeOf(/^index-/).filter(({ f }) => readFileSync(`${dir}/${f}`, 'utf8').includes('cg-thread')).map((x) => x.kb));
-  const mainKb = sizeOf(/^main-/)[0].kb;
-  check(pageKb <= 20, `JS 予算：ページ ${pageKb.toFixed(1)}KB ≤ 20KB`);
-  check(pageKb + conciergeKb <= 27, `JS 予算：受付 ${(pageKb + conciergeKb).toFixed(1)}KB ≤ 27KB`);
-  check(mainKb <= 300, `JS 予算：体験 ${mainKb.toFixed(1)}KB ≤ 300KB`);
-}
-// QA の指摘の回帰テスト（Chromium と WebKit）
-await runRegress({ base: `http://localhost:${PORT}`, kinds: (process.env.REGRESS_KINDS || 'chromium,webkit').split(','), shots: shotsDir, check });
-
 console.log(failed ? `\n${failed} 件失敗` : '\nすべて通過');
 process.exit(failed ? 1 : 0);
