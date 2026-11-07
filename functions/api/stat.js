@@ -1,6 +1,9 @@
-// 計測の数える口（E-14）：POST /api/stat、本文 { ev, id, via }。KV（STATS）の数を +1 するだけ
-// IP・UA・会話の文は保存しない（IP は isolate の中の回数制限にだけ使い、KV には書かない）。Cookie も使わない
+// 計測の数える口（E-14）：POST /api/stat、本文 { ev, id, via, sid, lang }。KV（STATS）の数を +1 する
+// 匿名 id（sid）があれば、構造化した出来事を D1 にも書く（docs/ADMIN.md 2 節）。KV の数と D1 の出来事は別々に失敗してよい
+// IP・UA・会話の文は保存しない（IP は isolate の中の回数制限にだけ使い、KV にも D1 にも書かない）。Cookie も使わない
 import { normalizeEvent, statKeys, jstDate, DAY_TTL } from '../_lib/stats.js';
+import { normalizeJourney, insertEvent, maybePurge } from '../_lib/events.js';
+import { readCatalog } from '../_lib/catalog.js';
 
 const RATE_LIMIT = 60;            // IP ごと 1 分あたりの回数
 const RATE_WINDOW = 60_000;
@@ -81,10 +84,12 @@ export async function onRequestPost(ctx) {
     body = JSON.parse(text);
   } catch { return empty(400, cors); }
   const ev = normalizeEvent(body);
-  if (!ev) return empty(400, cors);
-  if (!env.STATS) return empty(204, cors);   // KV が無い環境では数えない
+  // 出来事の検査はカタログを読むので waitUntil の中で。ここでは名前だけ見る（知らない名前は 400）
+  const journeyName = typeof body?.ev === 'string' && typeof body?.sid === 'string';
+  if (!ev && !journeyName) return empty(400, cors);
 
-  const work = (async () => {
+  const counted = (async () => {
+    if (!ev || !env.STATS) return;   // KV が無い環境では数えない
     if (ev.id) {
       const ids = await knownIds(req, env);
       if (ids && !ids.has(ev.id)) return;
@@ -93,6 +98,14 @@ export async function onRequestPost(ctx) {
     // KV は同じ鍵に 1 秒 1 回までなので、重なると失敗することがある。数え漏れは許す
     await Promise.allSettled([bump(env.STATS, dKey, DAY_TTL), bump(env.STATS, tKey, 0)]);
   })().catch(() => {});
+  const logged = (async () => {
+    if (!env.DB || !journeyName) return;
+    const j = normalizeJourney(body, await readCatalog(req, env));
+    if (!j) return;
+    await insertEvent(env.DB, j);
+    await maybePurge(env.DB);
+  })().catch((e) => console.error('出来事を保存できない', String(e)));
+  const work = Promise.all([counted, logged]);
   if (typeof ctx.waitUntil === 'function') ctx.waitUntil(work); else await work;
   return empty(204, cors);
 }
