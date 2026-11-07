@@ -18,3 +18,6 @@ works/*/generated/*.tmp
 # Cloudflare Pages Functions（気分から絵をすすめる。functions/）。wrangler の作業フォルダと手元の Secret
 .wrangler/
 .dev.vars
+
+# 提出用のデモ動画は git に入れず、配置のときに dist/demo/demo.mp4 へ置く
+public/demo/*.mp4

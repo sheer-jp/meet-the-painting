@@ -18,3 +18,8 @@
   X-Content-Type-Options: nosniff
   Cross-Origin-Opener-Policy: same-origin
   Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+
+# デモ動画：差し替えられるよう短いキャッシュにする（docs/DECISIONS.md）
+/demo/*
+  Cache-Control: public, max-age=300
+  X-Robots-Tag: noindex
