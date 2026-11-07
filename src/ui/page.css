@@ -6,7 +6,9 @@
   --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
   --latin: "Cormorant Garamond", "Shippori Mincho", Georgia, serif;
   --sans: "Noto Sans JP", "Hiragino Sans", system-ui, -apple-system, sans-serif;
+  --vh100: 100vh;   /* 画面の高さ。dvh の無い古い Safari は vh（カスタムプロパティは宣言を 2 行並べても効かないので @supports で切り替える） */
 }
+@supports (height: 100dvh) { :root { --vh100: 100dvh; } }
 * { box-sizing: border-box; }
 html { height: 100%; }
 body { margin: 0; min-height: 100%; background: var(--bg); color: var(--ink); font-family: var(--sans); font-weight: 300; line-height: 1.8; -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
@@ -20,6 +22,14 @@ button { font-family: inherit; }
 .atmosphere::after { content: ""; display: none; }
 @keyframes drift { from { transform: scale(1.1) translate(-2%, -1%); } to { transform: scale(1.18) translate(2%, 2%); } }
 @media (prefers-reduced-motion: reduce) { .atmosphere::before { animation: none; } }
+
+/* 文節の改行（docs/DESIGN.md「改行の決まり」。text/phrases.ts の setPhrases）。文節が 1 行より長いときだけ、その中で折り返す */
+.ph { display: inline-block; max-width: 100%; }
+/* 失敗の知らせ（文を残す。読み込み直すボタンつきのことも） */
+.page-note { flex-basis: 100%; margin: 8px 0 0; font-size: 13px; line-height: 1.8; letter-spacing: .04em; color: var(--ink); }
+.page-note-btn { appearance: none; display: block; min-height: 44px; margin-top: 2px; padding: 0 16px; border: 1px solid var(--ink); border-radius: 22px; background: #fff; color: var(--ink); font-size: 13px; letter-spacing: .1em; cursor: pointer; }
+.page-note-btn:hover { background: var(--bg-2); }
+.cg-thread > .page-note { align-self: stretch; margin: 6px 0 0 8px; }
 
 /* 共通の上端 */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0 0; }
@@ -92,6 +102,9 @@ section { margin: 0 0 var(--sec); }
 /* P-17：フッターは「© SHEER」だけ（11px、--ink-2、上に 1px 線） */
 footer { margin-top: var(--sec); padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 11px; letter-spacing: .1em; display: flex; flex-wrap: wrap; gap: 4px 1.4em; }
 
+.foot-data { min-height: 44px; display: inline-flex; align-items: center; margin-top: -14px; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; }
+.foot-data:hover { color: var(--ink); }
+
 /* 体験の舞台 */
 #stage { position: fixed; inset: 0; background: #ffffff; z-index: 50; }   /* 白の中に絵が浮く（11-06 作家。受付と同じ紙白） */
 #stage[hidden] { display: none; }
@@ -101,7 +114,7 @@ footer { margin-top: var(--sec); padding-top: 18px; border-top: 1px solid var(--
 .hud .skip { pointer-events: auto; position: absolute; top: calc(14px + env(safe-area-inset-top)); right: calc(68px + env(safe-area-inset-right)); height: 44px; padding: 0 16px; border-radius: 22px; border: 1px solid rgba(28,26,23,.35); background: rgba(246,244,239,.72); color: var(--ink); font-size: 12px; letter-spacing: .16em; cursor: pointer; }
 .hud .pausebtn { pointer-events: auto; position: absolute; top: calc(14px + env(safe-area-inset-top)); right: calc(150px + env(safe-area-inset-right)); width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(28,26,23,.35); background: rgba(246,244,239,.72); color: var(--ink); font-size: 11px; cursor: pointer; }
 .hud .title { position: absolute; left: 0; right: 0; bottom: 12%; text-align: center; color: var(--ink); text-shadow: 0 0 8px rgba(246,244,239,.9), 0 0 2px rgba(246,244,239,.9); font-family: var(--serif); font-size: 16px; letter-spacing: .3em; opacity: 0; transition: opacity 1.2s; }
-.hud .paused { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink); text-shadow: 0 0 8px rgba(246,244,239,.9); font-size: 12px; letter-spacing: .3em; opacity: 0; transition: opacity .3s; }
+.hud .paused { position: absolute; left: calc(14px + env(safe-area-inset-left)); top: calc(14px + env(safe-area-inset-top)); height: 44px; padding: 0 14px; border-radius: 22px; background: rgba(246,244,239,.72); display: grid; place-items: center; pointer-events: none; color: var(--ink); text-shadow: 0 0 8px rgba(246,244,239,.9); font-size: 13px; letter-spacing: .3em; opacity: 0; transition: opacity .3s; }
 .hud .ending { pointer-events: auto; position: absolute; left: 0; right: 0; bottom: calc(28px + env(safe-area-inset-bottom)); display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 0 16px; opacity: 0; transition: opacity 1.2s; }
 .hud .ending .btn { background: rgba(246,244,239,.78); border-color: rgba(28,26,23,.5); color: var(--ink); }
 .hud .ending .btn.primary { background: var(--ink); color: #f6f4ef; border-color: var(--ink); }
@@ -124,6 +137,8 @@ footer { margin-top: var(--sec); padding-top: 18px; border-top: 1px solid var(--
   .hud .end-band .ending { display: grid; grid-template-columns: 1fr 1fr; width: 100%; max-width: 420px; }
   .hud .end-band .ending .btn.primary { grid-column: 1 / -1; order: -1; }
 }
+.hud-note { position: absolute; left: 12px; right: 12px; text-align: center; color: var(--ink); font-size: 13px; letter-spacing: .06em; line-height: 1.6; white-space: pre-line; overflow-wrap: anywhere; pointer-events: auto; user-select: text; -webkit-user-select: text; }
+.hud-note::before { content: none; }
 .hud .vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, transparent 55%, rgba(246,244,239,.85) 100%); opacity: 0; transition: opacity .3s; }
 .hud .debug { position: absolute; left: 8px; top: 8px; font: 11px/1.4 monospace; color: #0f0; background: rgba(0,0,0,.5); padding: 4px 6px; white-space: pre; }
 /* 絵の中の作家の言葉（物語モード T3。11-07 T-1：太く・大きく。docs/EXPERIENCE.md 3 節 T3 の数値） */
@@ -140,6 +155,7 @@ footer { margin-top: var(--sec); padding-top: 18px; border-top: 1px solid var(--
 .room figcaption { font-family: var(--serif); font-size: 15px; letter-spacing: .06em; color: var(--ink); margin-top: 10px; line-height: 1.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* P-5：札は 1 行 */
 /* P-6：1 文目（操作）は墨 12px、2 文目（断り）は --ink-2 11px、間 4px。帯の下 12px（P-8） */
 .rooms-hint { margin: 12px 0 0; letter-spacing: .1em; line-height: 1.7; display: flex; flex-direction: column; gap: 4px; }
+#rooms { scroll-margin-top: 12px; }
 .rooms-hint-do { font-size: 12px; color: var(--ink); }
 .rooms-hint-note { font-size: 11px; color: var(--ink-2); }
 
@@ -195,14 +211,14 @@ body.paper {
 .paper .lang select { color: var(--ink); }
 .paper .lang select option { color: #141210; background: #ffffff; }
 
-/* 受付（C）：上にキャラクター、下に会話、入力欄は下に固定。高さは 100dvh（キーボードが出たら visualViewport の高さ） */
+/* 受付（C）：上にキャラクター、下に会話、入力欄は下に固定。高さは var(--vh100)（キーボードが出たら visualViewport の高さ） */
 body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 /* キャラクターの高さ（縦画面）。迎えの状態は大きく 44%、会話の状態（.is-talk）は 20%、キーボードが出たら 16%。0.4 秒で縮む */
 @property --cg-host { syntax: '<percentage>'; inherits: true; initial-value: 30%; }
 .cg {
   --cg-host: 30%;   /* 迎え。チャットの UI らしく、人は上に小さめ（11-06 作家） */
   transition: --cg-host .4s ease;
-  position: fixed; left: 0; right: 0; top: var(--cg-top, 0px); height: var(--cg-h, 100dvh);
+  position: fixed; left: 0; right: 0; top: var(--cg-top, 0px); height: var(--cg-h, var(--vh100));
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--cg-host, 30%) minmax(0, 1fr) auto;
   grid-template-areas: "top" "host" "talk" "form";
   max-width: 720px; margin: 0 auto;
@@ -215,10 +231,16 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 .cg-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 0; flex: none; }
 /* P-16：スキップは会話の欄のいちばん下（4 つ目のボタンとのミスタップを避ける）。上に 28px の空きと 1px の線、12px、--ink-2、高さ 44px、中央。
    迎えの状態だけ出す（会話が始まったら隠す）。入力欄が隠れている迎えの状態は、ホームバーの分を下に空ける */
-.cg-skip { flex: none; align-self: stretch; justify-content: center; margin: 28px 0 env(safe-area-inset-bottom); border-top: 1px solid var(--line); font-size: 12px; letter-spacing: .1em; color: var(--ink-2); min-height: 44px; display: flex; align-items: center; padding: 0 8px; line-height: 1.4; text-align: center; animation: cg-in .6s ease both; animation-delay: var(--d, 0s); }
+.cg-foot { flex: none; align-self: stretch; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 0 14px; margin: 28px 0 env(safe-area-inset-bottom); border-top: 1px solid var(--line); animation: cg-in .6s ease both; animation-delay: var(--d, 0s); }
+.cg-skip { justify-content: center; font-size: 12px; letter-spacing: .06em; color: var(--ink-2); min-height: 44px; display: flex; align-items: center; padding: 0 4px; line-height: 1.4; text-align: center; }
+.cg-data { display: inline-flex; align-items: center; min-height: 44px; font-size: 11px; letter-spacing: .06em; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 3px; white-space: nowrap; }
+.cg-data:hover { color: var(--ink); }
+.cg.is-talk .cg-foot { margin: 0; border-top: 0; justify-content: flex-end; }
+.cg.is-talk .cg-data { min-height: 32px; }
+.cg.is-kb .cg-foot { display: none; }
 .cg-skip::after { content: "→"; margin-left: .5em; }
 .cg-skip:hover { color: var(--ink); }
-.cg.is-kb .cg-skip, .cg.is-talk .cg-skip { display: none; }
+.cg.is-talk .cg-skip { display: none; }
 .cg:not(.is-talk) .cg-thread { padding-bottom: 0; }   /* 迎えの状態：ボタン列とスキップの間はスキップの 28px（＋列の 4px）だけ */
 /* 人の部分は「窓」（11-06 深夜、作家「ゲームは下に線や窓があって、ここが人の部分だと分かる」）：薄い紙色のパネルと下のヘアライン。胸で切れた画像がパネルの縁で収まる */
 /* 窓そのものが .cg-host（11-07 作家「キャラクターを奥側に置かないと、動いたとき枠をはみ出る」）：枠で切り抜く（overflow hidden）。人は窓の中の層 */
@@ -267,19 +289,34 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 /* 会話が始まったら（最初の選択か「自分のことばで書く」）キャラクターを小さくして文字を読みやすく。キーボードが出たらさらに小さく（11-06 作家）
    おすすめは別の画面 C2（concierge.css） */
 /* 背の低い縦画面（iPhone SE など、高さ 700px 以下）：迎えの状態は 25%（あいさつ 2 文と 4 つのボタンが入りきるように） */
-@media (max-height: 700px) and (orientation: portrait) { .cg { --cg-host: 23%; } }   /* P-16 で 26% → 25%。11-07 FIX-B（AUDIT-1 P1-2）：390×664 で最初の 1 文と選択肢が窓に収まるよう 23% */
+@media (max-height: 700px) and (orientation: portrait) { .cg { --cg-host: 21%; } .cg:not(.is-talk) .cg-foot { margin-top: 8px; } .cg:not(.is-talk) .cg-thread { gap: 6px; padding-top: 4px; } .cg:not(.is-talk) .cg-line { padding-block: 6px; } }   /* P-16 で 26% → 25%。11-07 FIX-B（AUDIT-1 P1-2）：390×664 で最初の 1 文と選択肢が窓に収まるよう 23% */
 .cg.is-talk { --cg-host: 15%; }
 .cg.is-talk.is-kb, .cg.is-kb { --cg-host: 12%; }
 /* PC・横向きも同じ「上に人、下に会話」（11-06 作家「パソコンでも同じ感じで」）。幅は 640px に抑えて中央に。人の高さは px で上限 */
 @media (min-width: 640px) {
   .cg { max-width: 640px; margin: 0 auto; }   /* 中央に（11-06 深夜、作家「右に寄っている」） */
-  .cg { grid-template-rows: auto 220px minmax(0, 1fr) auto; }   /* 人の高さは px で（画面が高くても大きくしない） */
+  .cg { grid-template-rows: auto clamp(130px, calc(var(--vh100) * .24), 220px) minmax(0, 1fr) auto; }   /* 人の高さは 220px まで（画面が高くても大きくしない。低い画面では選択肢が全部入るように縮める） */
   .cg.is-talk { grid-template-rows: auto 150px minmax(0, 1fr) auto; }
   .cg.is-kb { grid-template-rows: auto 120px minmax(0, 1fr) auto; }
   .cg-host { max-height: 220px; }
   .cg.is-talk .cg-host { max-height: 150px; }
 }
-@media (prefers-reduced-motion: reduce) { .cg { transition: none; } .cg-face { transition: none; } .cg-faces { animation: none; } .cg-greet, .cg-skip { animation: none; } }
+@media (min-width: 640px) and (max-height: 800px) { .cg:not(.is-talk) .cg-foot { margin-top: 10px; } }
+/* スマホの横向き（docs/EXPERIENCE.md：キャラクターは左 36%、会話は右）。選択肢は 2 列にして、最初の画面に全部入れる */
+@media (orientation: landscape) and (max-height: 500px) {
+  .cg, .cg.is-talk, .cg.is-kb { max-width: none; column-gap: 16px; grid-template-columns: 36% minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "host top" "host talk" "host form"; }
+  .cg-host, .cg.is-talk .cg-host { width: 100%; max-height: none; margin: 8px 0; }
+  .cg-top { margin-bottom: 0; padding-top: 0; }
+  .cg-top .cg-name { display: inline; margin-left: .6em; }
+  .cg-thread { gap: 4px; padding: 2px; }
+  .cg:not(.is-talk) .cg-thread > :first-child { margin-top: 0; }
+  .cg-line { padding: 3px 12px; font-size: 14.5px; line-height: 1.6; }
+  .cg-openers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 6px; margin: 2px 0 0 4px; }
+  .cg-openers-cap { grid-column: 1 / -1; margin: 0; }
+  .cg-opt { padding: 2px 8px 2px 10px; font-size: 14px; line-height: 1.35; }
+  .cg:not(.is-talk) .cg-foot { margin-top: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { .cg { transition: none; } .cg-face { transition: none; } .cg-faces { animation: none; } .cg-greet, .cg-foot { animation: none; } }
 
 /* ギャラリー（G）：美術館の展示室（docs/DESIGN.md「ギャラリー」、11-08 作家）。HTML は 1 つ、壁の画像と並べ方を CSS で PC とスマホに分ける。
    部屋（壁・床・天井・レール）は .gw-wall の背景、光だまりと影は絵ごとに持つ（絵の位置は画面幅と絞り込みで変わるので、画像に焼き込まない） */
@@ -326,7 +363,7 @@ main.gw { position: relative; }
 /* PC：横に続く壁を、歩きながら見る */
 @media (min-width: 768px) {
   /* 画像の中の位置（高さに対する割合）：レール 8.3〜9.9%、巾木の上 83.3%、床 85%。絵の中心は目の高さ 46% */
-  main.gw { --room-h: max(100dvh, 560px); --gap: clamp(214px, 13vw + 60px, 330px); height: var(--room-h); overflow: hidden; padding: 0; }
+  main.gw { --room-h: max(var(--vh100), 560px); --gap: clamp(214px, 13vw + 60px, 330px); height: var(--room-h); overflow: hidden; padding: 0; }
   .gw-wall {
     --hang-h: calc(var(--room-h) * .52);   /* いちばん高い絵の高さ（gwSizes の 52vh と同じ） */
     --cm: calc(var(--hang-h) / var(--maxh));   /* 1 cm の長さ。全作品で同じなので実寸の比のまま */
@@ -363,7 +400,8 @@ main.gw { position: relative; }
   .gw-top > * { pointer-events: auto; }
   .gw-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* 見出しは壁の文字（.gw-intro）で見せる。読み上げ用に残す */
   .gw-filter { position: absolute; z-index: 3; top: max(0px, calc(var(--room-h) * .083 - 48px)); left: 50%; transform: translateX(-50%); }
-  .gw footer { position: absolute; z-index: 3; left: clamp(24px, 3vw, 48px); bottom: 14px; margin: 0; padding: 0; border: 0; pointer-events: none; color: #55524d; }
+  .gw footer { position: absolute; z-index: 3; left: clamp(24px, 3vw, 48px); bottom: 0; margin: 0; padding: 0; border: 0; pointer-events: none; color: #55524d; align-items: center; min-height: 44px; }
+  .gw footer a { pointer-events: auto; margin-top: 0; }
   /* 横に続くしるし。端まで歩いたら消える（page.ts の .is-end） */
   .gw.is-scroll .gw-more { display: block; position: absolute; z-index: 3; right: clamp(24px, 3vw, 48px); bottom: 12px; font-family: var(--latin); font-size: 20px; font-weight: 300; line-height: 1; color: #55524d; pointer-events: none; transition: opacity .4s ease; }
   .gw.is-scroll .gw-scroll { display: block; position: absolute; z-index: 3; right: calc(clamp(24px, 3vw, 48px) + 30px); bottom: 14px; margin: 0; font-size: 11px; letter-spacing: .14em; color: #55524d; pointer-events: none; transition: opacity .4s ease; }
@@ -376,7 +414,7 @@ main.gw { position: relative; }
 
 /* スマホ：縦に見る。絵は幅いっぱい寄りのまま、壁と光と床の気配だけ（画像は天井の帯と床の帯。真ん中は同じ色 #f2f2f2 につながる） */
 @media (max-width: 767.98px) {
-  main.gw { min-height: 100dvh; display: flex; flex-direction: column; padding: 0; background: #f2f2f2; overflow: clip; isolation: isolate; }
+  main.gw { min-height: var(--vh100); display: flex; flex-direction: column; padding: 0; background: #f2f2f2; overflow: hidden; overflow: clip; isolation: isolate; }
   main.gw::before { content: ""; position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 36.9vw; background: linear-gradient(to bottom, #e4e4e2 0, #e4e4e2 7vw, #f2f2f2 36.9vw); }   /* 画像が来るまでの天井 */
   .gw.has-wall::before { background: url("./gallery/wall-sp.webp") 0 0 / 100% auto no-repeat; }   /* 画像の上の帯：天井とレール */
   .gw-top { position: relative; padding: calc(9vw + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
@@ -401,7 +439,7 @@ main.gw { position: relative; }
 
 /* 作品ページ：受付から来たとき（?via=concierge）の細い帯。絵の下・「入る」の上 */
 .via-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px; margin: 0 0 -14px; padding: 4px 0; border-bottom: 1px solid var(--line); font-family: var(--serif); font-size: 13px; letter-spacing: .16em; color: var(--ink); }
-.via-links { display: flex; gap: 0 18px; font-family: var(--sans); font-size: 11.5px; letter-spacing: .12em; }
+.via-links { display: flex; flex-wrap: wrap; gap: 0 18px; font-family: var(--sans); font-size: 11.5px; letter-spacing: .12em; }
 .via-links a { min-height: 44px; display: inline-flex; align-items: center; color: var(--ink-2); }
 .via-links a:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
 

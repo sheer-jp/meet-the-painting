@@ -2,7 +2,7 @@
 .fu {
   position: fixed; z-index: 60;
   right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--fu-bottom, 0px) + var(--fu-kb, 0px));
-  width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 24px - var(--fu-bottom, 0px) - var(--fu-kb, 0px)); overflow-y: auto; overscroll-behavior: contain;
+  width: min(340px, calc(100vw - 24px)); max-height: calc(var(--vh100) - 24px - var(--fu-bottom, 0px) - var(--fu-kb, 0px)); overflow-y: auto; overscroll-behavior: contain;
   padding: 14px 16px 12px; background: #fff; color: var(--ink); border-radius: 8px;
   box-shadow: 0 1px 2px rgba(35, 32, 29, .1), 0 10px 26px rgba(35, 32, 29, .14);
   animation: fu-in .45s ease both; outline: none;
@@ -34,6 +34,7 @@
 .fu-data { display: inline-block; margin-left: 6px; padding: 2px 0; color: var(--ink-2); text-underline-offset: 3px; }
 .fu-status { margin: 8px 0 0; font-size: 13px; line-height: 1.7; color: var(--ink); }
 .fu-status:empty { display: none; }
+.fu-form .fu-note { margin-top: 0; }
 .fu-dots { display: flex; gap: 5px; margin: 6px 0 4px 54px; min-height: 14px; }
 .fu-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-2); animation: fu-blink 1.6s ease-in-out infinite; }
 .fu-dots i:nth-child(2) { animation-delay: .2s; }

@@ -46,7 +46,7 @@ describe('clampOffset with bounds', () => {
 });
 
 // 絵の層の置き方（src/ui/roomArt.ts。拡大表示と T5 の終わりで共通）
-import { pctBox, coverBox, canMove } from '../src/ui/roomArt';
+import { pctBox, coverBox, canMove, roomBox } from '../src/ui/roomArt';
 describe('roomArt の純関数', () => {
   it('画像の px の矩形を枠の % に', () => {
     expect(pctBox({ x0: 400, y0: 800, x1: 800, y1: 1200 }, 1600, 1600)).toEqual([25, 50, 25, 25]);
@@ -76,5 +76,28 @@ describe('roomArt の純関数', () => {
     expect(canMove(room as never, 'rooms/a.jpg', 'p.jpg')).toBe(true);
     expect(canMove(room as never, null, 'p.jpg')).toBe(false);
     expect(canMove({ ...room, occlusion: true } as never, 'rooms/a.jpg', 'p.jpg')).toBe(false);
+  });
+});
+
+describe('roomBox（T5 の部屋の置き方。比較の相手を切らない）', () => {
+  const quad: [number, number][] = [[635, 195], [815, 195], [815, 349], [635, 349]];
+  const door: [number, number, number, number] = [1115, 85, 1385, 770];
+  const inside = (b: ReturnType<typeof roomBox>, x: number, vw: number) => { const p = x * b.k + b.x; return p >= 0 && p <= vw; };
+  it('keep が無ければ cover のまま', () => {
+    expect(roomBox(1586, 992, 390, 844, quad)).toEqual(coverBox(1586, 992, 390, 844));
+  });
+  for (const [vw, vh] of [[390, 844], [375, 667], [768, 1024]] as const) {
+    it(`縦長 ${vw}×${vh}：絵とドアが両方入る`, () => {
+      const b = roomBox(1586, 992, vw, vh, quad, door, 170);
+      for (const x of [635, 815, 1115, 1385]) expect(inside(b, x, vw)).toBe(true);
+      expect(b.y).toBeGreaterThanOrEqual(0);
+    });
+  }
+  it('横長：cover で両方入るなら cover のまま', () => {
+    expect(roomBox(1586, 992, 1280, 720, quad, door, 170)).toEqual(coverBox(1586, 992, 1280, 720));
+  });
+  it('高さが余ったら帯を除いた場所の中央', () => {
+    const b = roomBox(1586, 992, 390, 844, quad, door, 170);
+    expect(b.y).toBeCloseTo((844 - 170 - b.h) / 2);
   });
 });

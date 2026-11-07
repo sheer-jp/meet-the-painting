@@ -20,7 +20,7 @@ export interface Space {
 // 部屋で見る（space.json の rooms[]）。文章は docs/SIZE_UX.md 3・5 節
 export interface Room {
   name: string; image: string; label: Multi; category?: 'studio' | 'house'; wall_width_cm: number;
-  image_px?: [number, number]; quad_px?: [number, number][];
+  image_px?: [number, number]; quad_px?: [number, number][]; keep_px?: [number, number, number, number];
   base?: string;             // 絵の無い素の部屋（サイトのルートからの相対。例 rooms/<name>.jpg）。無ければ拡大表示も合成画像
   occlusion?: boolean;       // 絵の前に手前の物がある（true なら拡大表示は合成画像のままで、絵を動かせない）
   px_per_cm?: number; confidence?: 'high' | 'mid' | 'low' | null; primary_ref?: string | null;

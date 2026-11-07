@@ -12,7 +12,7 @@ export function buildHud(parent: HTMLElement, lang: Lang, opts: { fromQr: boolea
   const vignette = document.createElement('div'); vignette.className = 'vignette';
   const close = document.createElement('button'); close.className = 'close'; close.textContent = '×';
   const skip = document.createElement('button'); skip.className = 'skip';
-  const pause = document.createElement('button'); pause.className = 'pausebtn'; pause.textContent = '❚❚';
+  const pause = document.createElement('button'); pause.className = 'pausebtn'; pause.textContent = '❚❚'; pause.hidden = true;   // 語りの間だけ見せる（StoryMode）
   const title = document.createElement('div'); title.className = 'title';
   const paused = document.createElement('div'); paused.className = 'paused';
   const once = document.createElement('div'); once.className = 'once';

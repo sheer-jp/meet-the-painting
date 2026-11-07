@@ -29,6 +29,24 @@ export function coverBox(iw: number, ih: number, vw: number, vh: number): { x: n
   const k = Math.max(vw / iw, vh / ih);
   return { x: (vw - iw * k) / 2, y: (vh - ih * k) / 2, w: iw * k, h: ih * k, k };
 }
+// T5 の部屋の置き方。ふつうは cover。keep（画像の px の矩形。比較の相手）があって cover だと絵と一緒に入らないときだけ、両方が幅に収まるまで引く。
+// 引いて高さが余ったら、下の帯（reserveBottom）を除いた場所の中央に置く（周りは紙白）
+export function roomBox(iw: number, ih: number, vw: number, vh: number, quad: [number, number][], keep?: [number, number, number, number] | null, reserveBottom = 0): { x: number; y: number; w: number; h: number; k: number } {
+  const cover = coverBox(iw, ih, vw, vh);
+  if (!keep) return cover;
+  const r = quadRect(quad);
+  const x0 = Math.min(r.x0, keep[0]), x1 = Math.max(r.x1, keep[2]);
+  const inCover = x0 * cover.k + cover.x >= 0 && x1 * cover.k + cover.x <= vw;
+  if (inCover) return cover;
+  const margin = 24;   // 比較の相手が画面の端に貼りつかないように（画面の px）
+  const k = Math.min(cover.k, (vw - margin * 2) / (x1 - x0));
+  const w = iw * k, h = ih * k;
+  // 横：絵と比較の相手の真ん中を画面の中央に。ただし画像の外（紙白）をなるべく見せない
+  const want = vw / 2 - ((x0 + x1) / 2) * k;
+  const x = w >= vw ? Math.min(0, Math.max(vw - w, want)) : (vw - w) / 2;
+  const y = h >= vh ? (vh - h) / 2 : Math.max(0, (vh - reserveBottom - h) / 2);
+  return { x, y, w, h, k };
+}
 // 素の部屋 + 絵の層にできる部屋か（無ければ従来どおり合成画像）
 export function canMove(room: Room | undefined | null, base: string | null | undefined, painting: string | null | undefined): boolean {
   return !!(room && base && painting && !room.occlusion && room.quad_px && room.image_px);

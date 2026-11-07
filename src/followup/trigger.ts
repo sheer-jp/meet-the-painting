@@ -3,7 +3,7 @@ import { t } from '../i18n';
 
 export type Place = 'story_end' | 'after' | 'exit' | 'rooms' | 'dwell' | 'link';
 type Stat = (ev: string, id?: string | null, via?: string | null) => void;
-export interface Card { moveTo(parent: HTMLElement): void; dismiss(): void; isOpen(): boolean }
+export interface Card { moveTo(parent: HTMLElement): void; dismiss(): void; isOpen(): boolean; setHidden(hidden: boolean): void }
 
 export const SID_KEY = 'mtp.sid';
 const CLOSED_PREFIX = 'mtp.fu.';      // localStorage：閉じた・送った作品
@@ -51,16 +51,23 @@ export function createFollowup({ stat, lang }: { stat: Stat; lang: () => import(
   async function open(workId: string, place: Place, parent: HTMLElement, manual = false): Promise<void> {
     if (busy()) return;
     if (!manual && !canAuto(workId, safe(() => localStorage.getItem(CLOSED_PREFIX + workId), null), readShown())) return;
+    // 体験の最中・拡大表示の最中には出さない（T5 の帯の上だけは体験の中に出す）
+    const blocked = () => !manual && (inLightbox() || (inExperience() && place !== 'story_end'));
+    if (blocked()) return;
     opening = true;
     try {
       const c = await loadConfig();
       if (!c) return;
       const m = await import('./index');
+      if (blocked()) return;   // 読み込んでいる間に体験や拡大表示に入った
       if (!manual) safe(() => sessionStorage.setItem(SHOWN_KEY, JSON.stringify([...readShown(), workId])), undefined);
       card = await m.openFollowup({
         workId, place, parent, lang: lang(), ai: c.ai, manual, stat, sid: sessionId(),
         remember: (v: string) => safe(() => localStorage.setItem(CLOSED_PREFIX + workId, v), undefined),
       });
+      // 組み立てている間に状況が変わったとき：閉じた体験の中に残さない。隠すべき場面なら隠す
+      if (parent.id === 'stage' && parent.hidden) card.moveTo(document.body);
+      else if (parent === document.body && (inExperience() || inLightbox())) card.setHidden(true);
     } catch (e) { console.warn('感想カードを出せない', e); } finally { opening = false; }
   }
 
@@ -72,7 +79,7 @@ export function createFollowup({ stat, lang }: { stat: Stat; lang: () => import(
         if (!id) return;
         setTimeout(() => {
           const stage = document.getElementById('stage');
-          if (stage && !stage.hidden && document.querySelector('.end-band.on')) void open(id, 'story_end', stage);
+          if (stage && !stage.hidden && !inLightbox() && document.querySelector('.end-band.on')) void open(id, 'story_end', stage);
         }, STORY_END_MS);
       });
       document.addEventListener('click', (e) => {
@@ -97,9 +104,12 @@ export function createFollowup({ stat, lang }: { stat: Stat; lang: () => import(
     },
     // 作品ページで体験を閉じた：開いているカードは stage から body へ移す（書きかけを消さない）。無ければ少しあとに出す
     afterExperience(workId: string) {
-      if (card?.isOpen()) { card.moveTo(document.body); return; }
+      if (card?.isOpen()) { card.moveTo(document.body); card.setHidden(false); return; }
       setTimeout(() => { void open(workId, 'exit', document.body); }, AFTER_MS);
     },
+    // 体験や拡大表示に入る：開いているカードを隠す（書きかけは残る）。戻ったら uncover / afterExperience で出す
+    cover() { if (card?.isOpen()) card.setHidden(true); },
+    uncover() { if (card?.isOpen()) card.setHidden(false); },
     afterRooms(workId: string) {
       setTimeout(() => { if (!inLightbox()) void open(workId, 'rooms', document.body); }, 800);
     },

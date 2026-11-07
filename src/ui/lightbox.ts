@@ -3,6 +3,7 @@
 import { t, pick, type Lang } from '../i18n';
 import type { Multi, Room } from '../experience/types';
 import { mountRoomArt, quadRect, canMove, popWorthy, mountDragPop, type Rect, type DragPop } from './roomArt';
+import { setPhrases } from '../text/phrases';
 export { quadRect, clampOffset, type Rect } from './roomArt';   // テストと既存の呼び出し元のため
 
 export interface LightboxSpace { size_cm: [number, number]; size_label?: Multi | null; rooms: Room[] }
@@ -71,9 +72,9 @@ export function openLightbox(o: LightboxOptions): () => void {
     const parts: [string, string][] = [['lb-lead', pick(room.compare, lang)], ['lb-size', size], ['', pick(room.compare2, lang)], ['', pick(room.about, lang)]];
     const note: [string, string] = ['lb-note', pick(room.note, lang)];
     if (room.confidence === 'low') parts.unshift(note); else parts.push(note);
-    body.replaceChildren(...parts.filter(([, s]) => s).map(([cls, s]) => { const p = document.createElement('p'); p.textContent = s; if (cls) p.className = cls; return p; }));
+    body.replaceChildren(...parts.filter(([, s]) => s).map(([cls, s]) => { const p = document.createElement('p'); p.textContent = s; if (cls) p.className = cls; setPhrases(p, lang); return p; }));
     const where = pick(room.label, lang);
-    head.textContent = `${room.category ? `${t(`room_cat_${room.category}`, lang)} ─ ${where}` : where}${rooms.length > 1 ? `　${index + 1} / ${rooms.length}` : ''}`;
+    head.textContent = `${room.category ? `${t(`room_cat_${room.category}`, lang)} ─ ${where}` : where}${rooms.length > 1 ? `　${index + 1}\u00a0/\u00a0${rooms.length}` : ''}`;   // 「1 / 3」の途中で折り返さない
     root.setAttribute('aria-label', pick(room.label, lang));
     toggle.textContent = t(showDims ? 'dims_hide' : 'dims_show', lang);
     toggle.setAttribute('aria-pressed', String(showDims));

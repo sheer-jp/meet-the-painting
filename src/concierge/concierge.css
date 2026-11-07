@@ -20,7 +20,7 @@
 .cg-card-head { margin: 0; font-family: var(--serif); font-size: 14px; letter-spacing: .2em; color: var(--ink); animation: cg-in .5s ease both; }
 
 /* キャンバス：少し下から上がりながら Y 軸で回り、正面で止まる（くるんくるんくるん） */
-.cg-stage { position: relative; isolation: isolate; perspective: 900px; width: min(72%, 300px, calc(30dvh * var(--ar, 1))); margin: 6px 0 4px; }
+.cg-stage { position: relative; isolation: isolate; perspective: 900px; width: min(72%, 300px, calc((var(--vh100) * 0.3) * var(--ar, 1))); margin: 6px 0 4px; }
 .cg-canvas { position: relative; transform-style: preserve-3d; animation: cg-spin var(--spin-d) cubic-bezier(.2, .8, .2, 1) both, cg-shrink var(--spin-d) linear both; }
 .cg-front { position: relative; overflow: hidden; backface-visibility: hidden; -webkit-backface-visibility: hidden; box-shadow: 0 1px 2px rgba(35, 32, 29, .18), 0 14px 30px rgba(35, 32, 29, .16); background: var(--bg-2); }
 .cg-front img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -71,30 +71,42 @@
 
 /* おすすめの画面 C2：紙白、縦にスクロールできる。上からキャラクター（小さめ）、ひとこと、カード */
 .cg2 {
-  position: fixed; inset: 0; z-index: 10; height: 100dvh; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  position: fixed; inset: 0; z-index: 10; height: var(--vh100); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
   background: var(--bg); outline: none;
   padding: env(safe-area-inset-top) max(20px, env(safe-area-inset-right)) 0 max(20px, env(safe-area-inset-left));
   animation: cg2-up .5s cubic-bezier(.2, .7, .3, 1) both;
 }
 @keyframes cg2-up { from { opacity: 0; transform: translateY(24px); } }
 .cg2-in { overflow-x: clip; overflow-clip-margin: 20px; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; align-items: center; padding: 14px 0 calc(20px + env(safe-area-inset-bottom)); }
-.cg2-host { position: relative; height: min(18dvh, 160px); aspect-ratio: 512 / 412; flex: none; }   /* 小さめ（高さの 18% 程度） */
+.cg2-host { position: relative; height: min((var(--vh100) * 0.18), 160px); aspect-ratio: 512 / 412; flex: none; }   /* 小さめ（高さの 18% 程度） */
 .cg2-host .cg-face { opacity: 1; }
 .cg2-host .cg-face img { object-fit: contain; object-position: 50% 100%; }
 .cg2-line { margin: 6px 0 0; padding: 8px 16px; border: 1px solid var(--line); border-radius: 16px; background: #fff; font-family: var(--serif); font-size: 15px; line-height: 1.7; letter-spacing: .04em; color: var(--ink); text-align: center; }
 .cg2 .cg-card { align-self: stretch; margin: 6px 0 0; padding-top: 12px; border-top: 0; }
 .cg-card-head { font-weight: 400; }
-.cg2 .cg-stage { width: min(100%, 420px, calc(42dvh * var(--ar, 1))); }
+.cg2 .cg-stage { width: min(100%, 420px, calc((var(--vh100) * 0.42) * var(--ar, 1))); }
 .cg2 .cg-btn { min-height: 48px; }
 .cg2-foot { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 22px; }
 /* 「別のにする」で AI にもう 1 往復するあいだ、C2 の上に「…考えています」を重ねる */
-.cg2-wait { position: fixed; inset: 0; z-index: 11; margin: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: color-mix(in srgb, var(--bg) 84%, transparent); font-family: var(--serif); font-size: 15px; letter-spacing: .16em; color: var(--ink); animation: cg-fade .3s ease both; }
+.cg2-wait { position: fixed; inset: 0; z-index: 11; margin: 0; display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(255, 255, 255, .84); background: color-mix(in srgb, var(--bg) 84%, transparent); font-family: var(--serif); font-size: 15px; letter-spacing: .16em; color: var(--ink); animation: cg-fade .3s ease both; }
 /* 会話に戻ったあと：会話の最後に「おすすめをもう一度見る」と「もう一度、話す」 */
 .cg-after { align-self: stretch; display: flex; flex-wrap: wrap; justify-content: center; gap: 0 22px; margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--line); }
 .cg-reopen { color: var(--ink); text-decoration-color: var(--ink-2); }
-/* スマホの縦：キャンバスは幅いっぱい（実寸比のまま。C2 は縦にスクロール） */
-@media (max-width: 600px) and (orientation: portrait) {
-  .cg2 .cg-stage { width: 100%; }
+/* 低い画面：キャラクターと絵を小さくして、主ボタンまで最初の画面に入れる（実寸比のまま。下の 2 つのボタンは縦にスクロール） */
+@media (max-height: 900px) {
+  .cg2-host { height: min(calc(var(--vh100) * .12), 110px); }
+  .cg2 .cg-stage { width: min(100%, 420px, calc(var(--vh100) * .36 * var(--ar, 1))); }
+}
+/* スマホの横向き：上に小さく案内役とひとこと、左に絵、右に題名と操作 */
+@media (orientation: landscape) and (max-height: 500px) {
+  .cg2-in { max-width: 800px; flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: center; column-gap: 10px; padding-top: 4px; }
+  .cg2-host { height: 52px; }
+  .cg2-line { margin: 0; padding: 3px 12px; font-size: 14px; }
+  .cg2 .cg-card { flex-basis: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 24px; row-gap: 8px; justify-items: center; align-content: start; margin-top: 2px; padding-top: 2px; }
+  .cg2 .cg-stage { grid-column: 1; grid-row: 1 / span 12; align-self: start; width: min(42vw, calc(var(--vh100) * .66 * var(--ar, 1))); margin: 4px 0 0; }
+  .cg2 .cg-card > :not(.cg-stage) { grid-column: 2; }
+  .cg2 .cg-cap { margin: 0; }
+  .cg2 .cg-reason { font-size: 13.5px; line-height: 1.6; }
 }
 
 /* 動きを減らす設定：回転と光は出さず、0.3 秒のフェードだけ */

@@ -53,7 +53,8 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
   const tt = (k: string) => t(k, lang);
   const sendId = newId();
   let reaction: Reaction | null = null;
-  let texts: string[] = [];
+  let texts: string[] = [];     // いま確認の欄に出す文（案内役にも渡す）。確認で直したら、直した文に置きかえる
+  let turns = 0;                // 話した回数
   let open = true;
   let freeLogged = false;
   let closeTimer = 0;
@@ -82,12 +83,25 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
   const onViewport = () => { if (vv) root.style.setProperty('--fu-kb', `${Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))}px`); };
   vv?.addEventListener('resize', onViewport);
 
+  // スマホで作品ページに戻ったとき：カードが説明文と帯に被らないよう、被る分だけページを上げる。ページの終わりもカードに隠れないよう余白を足す
+  const pageMain = () => (root.parentElement === document.body ? document.querySelector<HTMLElement>('main.work') : null);
+  const keepClear = () => {
+    const main = pageMain();
+    if (!main || root.hidden || !matchMedia('(max-width: 639.98px)').matches) return;
+    const top = root.getBoundingClientRect().top;
+    main.style.paddingBottom = `${Math.round(innerHeight - top) + 16}px`;
+    const anchor = document.querySelector('.via-band') || document.querySelector('.titling');
+    const over = anchor ? anchor.getBoundingClientRect().bottom + 8 - top : 0;
+    if (over > 0) window.scrollBy({ top: over, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  };
   const dispose = () => {
     if (!open) return;
     open = false;
     clearTimeout(closeTimer);
     pending.abort();
     vv?.removeEventListener('resize', onViewport);
+    const main = pageMain();
+    if (main) main.style.paddingBottom = '';
     root.remove();
   };
   const close = () => { o.stat('fu_close', o.workId); o.remember('closed'); dispose(); };
@@ -129,13 +143,14 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
     const talk = button(tt('fu_talk'), 'fu-send', () => {}, form);
     talk.type = 'submit'; talk.disabled = true;
     area.addEventListener('input', () => { talk.disabled = !area.value.trim(); });
+    if (o.ai) setText(el('p', 'fu-note', form), tt('fu_ai_note'), lang);   // 返事を作るために Claude API へ渡す（docs/ADMIN.md 1 節）
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const v = area.value.trim();
       if (v) void talkTo(v);
     });
     // 文を書かなくても、反応だけ届けられる（反応を選んだときだけ）
-    if (texts.length) button(tt('fu_no_more'), 'fu-sub', () => renderConfirm(tt('fu_confirm')));
+    if (turns) button(tt('fu_no_more'), 'fu-sub', () => renderConfirm(tt('fu_confirm')));
     else if (reaction) button(tt('fu_no_words'), 'fu-sub', () => renderConfirm(tt('fu_confirm_reaction')));
     focusIfFine(area);
   }
@@ -148,7 +163,8 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
     pending.signal.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => ctrl.abort(), CHAT_TIMEOUT_MS);
     try {
-      const res = await fetch('/api/followup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang, work: o.workId, reaction, texts }), signal: ctrl.signal });
+      // 確認で直した長い文は、API の 1 文の上限まで
+      const res = await fetch('/api/followup', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang, work: o.workId, reaction, texts: texts.map((s) => s.slice(0, TEXT_MAX)) }), signal: ctrl.signal });
       if (!res.ok) return null;
       const d = await res.json() as { reply?: unknown };
       return typeof d.reply === 'string' && d.reply ? d.reply : null;
@@ -156,6 +172,7 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
   }
   async function talkTo(v: string) {
     texts = [...texts, v];
+    turns++;
     if (!freeLogged) { freeLogged = true; o.stat('fu_free', o.workId); }   // あったことだけ。文は送らない
     mine.hidden = false;
     setText(mine, v, lang);
@@ -189,7 +206,18 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
     const send = button(tt('fu_send'), 'fu-send', () => void doSend(area, send, status));
     const status = el('p', 'fu-status', body);
     status.setAttribute('role', 'status');
-    if (o.ai && texts.length && texts.length < TURNS) button(tt('fu_more'), 'fu-sub', () => renderTalk(tt('fu_more_line')));
+    // 文を全部消して、反応も選んでいないときは届けるものが無い：押せなくして、理由を添える
+    if (area && !reaction) area.addEventListener('input', () => {
+      const empty = !area!.value.trim();
+      send.disabled = empty;
+      setText(status, empty ? tt('fu_need_words') : '', lang);
+    });
+    if (o.ai && turns && turns < TURNS) button(tt('fu_more'), 'fu-sub', () => {
+      // 確認の欄で直した文を残す（次の返事にも、次の確認にも、直した文を使う）
+      const edited = area ? area.value.trim() : '';
+      if (edited !== words) texts = edited ? [edited] : [];
+      renderTalk(tt('fu_more_line'));
+    });
     button(tt('fu_no_send'), 'fu-sub', close);
     focusIfFine(send);
   }
@@ -223,6 +251,7 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
   o.parent.appendChild(root);
   placeAboveBand();
   onViewport();
+  requestAnimationFrame(keepClear);
   o.stat('fu_shown', o.workId, o.place);
   renderAsk();
   if (o.manual) root.querySelector<HTMLElement>('.fu-opt')?.focus({ preventScroll: true });   // 自分で開いたときだけフォーカスを移す
@@ -230,6 +259,7 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
   return {
     isOpen: () => open,
     dismiss: dispose,
-    moveTo(parent) { if (open && root.parentElement !== parent) { parent.appendChild(root); placeAboveBand(); } },
+    setHidden(h) { root.hidden = h; if (!h) { onViewport(); requestAnimationFrame(keepClear); } },
+    moveTo(parent) { if (open && root.parentElement !== parent) { parent.appendChild(root); placeAboveBand(); requestAnimationFrame(keepClear); } },
   };
 }

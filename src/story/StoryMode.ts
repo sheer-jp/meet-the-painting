@@ -8,11 +8,16 @@ import type { Space } from '../experience/types';
 import { ScreenText } from '../text/FloatingText';
 import { pick, t, type Lang } from '../i18n';
 import { screenTextTiming } from '../text/timing';
-import { mountRoomArt, coverBox, canMove, popWorthy, mountDragPop, type RoomArt, type DragPop } from '../ui/roomArt';
+import { mountRoomArt, roomBox, canMove, popWorthy, mountDragPop, type RoomArt, type DragPop } from '../ui/roomArt';
+import { setPhrases } from '../text/phrases';
 import { Particles } from '../space/Particles';
 
 // 文が終わったあと、流れを味わう時間（秒）。11-07 作家「文の長さは作品で違うので、終わってから 10 秒ほど楽しんで遷移。離脱させない」。docs/EXPERIENCE.md 3 節 T3
 const AFTER_TEXT_S = 10;
+const INTRO_SKIP_SPEED = 6;   // 「次へ」を押したあと、入りの場面（T0〜T2）を何倍で進めるか
+
+// 物語の終わり方。rooms は終わりの画面の「部屋で見る」（作品ページの #rooms へ）
+export type StoryEnd = 'again' | 'exit' | 'rooms';
 
 export interface StoryCtx {
   renderer: THREE.WebGLRenderer | null; fluid: Fluid | null; space: Space; sound: Soundscape; hud: Hud; lang: Lang;
@@ -70,7 +75,10 @@ export class StoryMode {
   private paused = false;
   private pausedAt = 0;          // 一時停止を始めた時刻（paused の間だけ意味がある）
   private pausedTotal = 0;       // これまでの一時停止の合計（ms）。T3 の最短に数えない
-  private floorSkip = false;     // 文が終わったあとの「次へ」：T3 の最短を待たずに T4 へ
+  private floorSkip = false;     // 最後の文のあとの「次へ」：余韻の 10 秒を待たずに T4 へ
+  private introSkip = false;     // T0〜T2 の「次へ」：入りを早回しして語りへ
+  private lastMsg = false;       // いま最後の文か、もう文が終わっている
+  private nextVoiceAt = -1;      // 声があるとき、「次へ」で飛ぶ先（次の文の開始秒）
   private running = true;
   private scaleContain = { x: 1, y: 1 };
   private scaleNow = { x: 1, y: 1 };
@@ -82,7 +90,7 @@ export class StoryMode {
   private t0 = performance.now();
   private bufSize = new THREE.Vector2();
   private fpsSamples: number[] = [];
-  private resolveEnd: ((v: 'again' | 'exit') => void) | null = null;
+  private resolveEnd: ((v: StoryEnd) => void) | null = null;
   private restoreBase: number;
   // T5 の終わりの画面：素の部屋 + 絵の層（ドラッグで動かせる。docs/EXPERIENCE.md 3 節 T5）。位置は保存しない
   private roomLayer: { root: HTMLDivElement; frame: HTMLDivElement; ra: RoomArt; pop: DragPop | null; k: number } | null = null;
@@ -164,8 +172,8 @@ export class StoryMode {
       const a = b.dataset.action;
       if (a === 'again') this.end('again');
       else if (a === 'close') this.end('exit');
-      else if (a === 'save') { const url = location.origin + location.pathname; (navigator.share ? navigator.share({ title: document.title, url }) : navigator.clipboard.writeText(url)).catch(() => {}); }
-      else if (a === 'rooms') { this.end('exit'); setTimeout(() => document.querySelector('.rooms')?.scrollIntoView({ behavior: 'smooth' }), 50); }
+      else if (a === 'save') void this.save();
+      else if (a === 'rooms') this.end('rooms');   // 体験を閉じたあと、呼び出し側が部屋の欄へ連れていく（作品ページ：スクロール、受付：#rooms へ移動）
       else if (a === 'contact') { if (this.ctx.space.contact) window.open(this.ctx.space.contact, '_blank', 'noopener'); }
     });
     // 触れる：なぞるとそこに流れができ、タップすると波紋のように広がる（T2〜T4）。一時停止はボタン
@@ -207,7 +215,33 @@ export class StoryMode {
     window.addEventListener('keydown', this.onKey);
   }
 
-  private onResize = () => { this.layout(); this.layoutRoomLayer(); };
+  private onResize = () => { this.layout(); this.layoutRoomMesh(); this.layoutRoomLayer(); };
+
+  // 「保存・共有」：共有シートがあればそれ。無ければコピーして、コピーしたことを見せる（できなければ URL を見せる）
+  private async save() {
+    const url = location.origin + location.pathname;
+    try {
+      if (navigator.share) { await navigator.share({ title: document.title, url }); return; }
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return;   // 共有シートを閉じただけ
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      this.say(t('copied', this.ctx.lang));
+    } catch {
+      this.say(`${t('copy_fail', this.ctx.lang)}\n${url}`, 8000);
+    }
+  }
+  // 帯の上に短く知らせる
+  private say(msg: string, ms = 2600) {
+    const hud = this.ctx.hud.root;
+    hud.querySelector('.hud-note')?.remove();
+    const el = document.createElement('div');
+    el.className = 'hud-note'; el.setAttribute('role', 'status'); el.textContent = msg;
+    el.style.bottom = `${(this.band?.offsetHeight ?? 0) + 8}px`;
+    hud.appendChild(el);
+    setTimeout(() => el.remove(), ms);
+  }
 
   // 触れる場面か（溶け始めてから、絵に戻るまで）
   private touchable() { return !!this.ctx.fluid && (this.stage === 'T2' || this.stage === 'T3' || this.stage === 'T4') && !this.paused; }
@@ -223,7 +257,15 @@ export class StoryMode {
   private onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') this.end('exit'); else if (e.key === ' ' && this.stage === 'T3') { e.preventDefault(); this.setPaused(!this.paused); } else if (e.key === 'ArrowRight') this.onSkip(); };
   // 「次へ」：文を飛ばす。文が全部終わって最短の流れを待っている間なら T4 へ（REVIEW-1 P1-5）
   // 「次へ」：一時停止中なら解いてから進める（REVIEW-2 P2。止まったまま T4 へ進むと「一時停止」の表示と文の停止が残る）
-  private onSkip = () => { if (this.paused) this.setPaused(false); this.text.skip(); this.floorSkip = true; };
+  private onSkip = () => {
+    if (this.paused) this.setPaused(false);
+    // T0〜T2：入りを早回しして語りへ（押してすぐ動く。docs/EXPERIENCE.md 3 節）
+    if (this.stage === 'T0' || this.stage === 'T1' || this.stage === 'T2') { this.introSkip = true; return; }
+    this.text.skip();
+    if (this.nextVoiceAt >= 0) this.ctx.sound.seekVoice(this.nextVoiceAt);
+    // 最後の文の途中か、文が終わったあとなら、余韻の 10 秒も待たない
+    if (this.lastMsg) this.floorSkip = true;
+  };
   // 一時停止を除いた経過（ms）
   private activeSince(t: number) { const now = performance.now(); return now - t - this.pausedTotal - (this.paused ? now - this.pausedAt : 0); }
 
@@ -235,7 +277,7 @@ export class StoryMode {
     if (p) this.ctx.sound.pauseVoice(); else this.ctx.sound.resumeVoice();
   }
 
-  private end(v: 'again' | 'exit') { this.resolveEnd?.(v); }
+  private end(v: StoryEnd) { this.resolveEnd?.(v); }
 
   private last = performance.now();
   private frame = () => {
@@ -284,15 +326,23 @@ export class StoryMode {
   };
 
   private async tween(sec: number, f: (t: number) => void, ease: (t: number) => number = easeInOut): Promise<void> {
-    const t0 = performance.now();
+    let t = 0, last = performance.now();
     return new Promise((res) => {
       const tick = () => {
         if (!this.running) return res();
-        const t = Math.min(1, (performance.now() - t0) / (sec * 1000)); f(ease(t));
+        const now = performance.now();
+        // 「次へ」が押されたら、入りの場面は同じ動きのまま 6 倍で進める（絵が飛ばない）
+        t = Math.min(1, t + ((now - last) / (sec * 1000)) * (this.introSkip ? INTRO_SKIP_SPEED : 1)); last = now;
+        f(ease(t));
         if (t < 1) requestAnimationFrame(tick); else res();
       };
       tick();
     });
+  }
+  // T0 の待ち。「次へ」ですぐ抜ける
+  private async introWait(ms: number) {
+    const t0 = performance.now();
+    while (this.running && !this.introSkip && performance.now() - t0 < ms) await wait(50);
   }
 
   // 終わりの演出に使う部屋（合成の座標があるもののうち最初）
@@ -318,16 +368,27 @@ export class StoryMode {
   // 部屋のイメージを画面に収めたときの、画像座標 → 画面の矩形（NDC のスケールと位置）
   private roomLayout() {
     const room = this.room()!;
-    const [iw, ih] = room.image_px!;
     const vw = innerWidth, vh = innerHeight;
-    const s = Math.max(vw / iw, vh / ih) * 1.0;   // cover（縦画面でも部屋が画面を満たす）
-    const ox = (vw - iw * s) / 2, oy = (vh - ih * s) / 2;
+    const b = this.roomFrame();
+    const s = b.k, ox = b.x, oy = b.y;
     const xs = room.quad_px!.map((p) => p[0]), ys = room.quad_px!.map((p) => p[1]);
     const x0 = Math.min(...xs) * s + ox, x1 = Math.max(...xs) * s + ox, y0 = Math.min(...ys) * s + oy, y1 = Math.max(...ys) * s + oy;
-    const roomScale = { x: (iw * s) / vw, y: (ih * s) / vh };
+    const roomScale = { x: b.w / vw, y: b.h / vh };
+    const roomPos = { x: ((b.x + b.w / 2) / vw) * 2 - 1, y: 1 - ((b.y + b.h / 2) / vh) * 2 };
     const paintScale = { x: (x1 - x0) / vw, y: (y1 - y0) / vh };
     const paintPos = { x: ((x0 + x1) / 2 / vw) * 2 - 1, y: 1 - ((y0 + y1) / 2 / vh) * 2 };
-    return { roomScale, paintScale, paintPos };
+    return { roomScale, roomPos, paintScale, paintPos };
+  }
+  // 部屋の置き場所。keep_px（比較の相手。「このドア」のドアなど）があれば、絵と一緒に必ず画面に入れる（roomArt.ts の roomBox）
+  private roomFrame() {
+    const room = this.room()!;
+    return roomBox(room.image_px![0], room.image_px![1], innerWidth, innerHeight, room.quad_px!, room.keep_px, this.band?.offsetHeight ?? 0);
+  }
+  private layoutRoomMesh() {
+    if (!this.roomMesh || !this.room()?.image_px || this.stage !== 'T5') return;
+    const L = this.roomLayout();
+    this.roomMesh.scale.set(L.roomScale.x, L.roomScale.y, 1);
+    this.roomMesh.position.set(L.roomPos.x, L.roomPos.y, 0);
   }
 
   // T5：部屋の画像を素の部屋（room.base）にし、絵を別の層として quad_px の位置に置く。lightbox と同じ roomArt.ts
@@ -364,7 +425,7 @@ export class StoryMode {
   private layoutRoomLayer() {
     const L = this.roomLayer; const room = this.room();
     if (!L || !room?.image_px) return;
-    const b = coverBox(room.image_px[0], room.image_px[1], innerWidth, innerHeight);
+    const b = this.roomFrame();
     L.k = b.k;
     Object.assign(L.frame.style, { left: `${b.x}px`, top: `${b.y}px`, width: `${b.w}px`, height: `${b.h}px` });
     L.ra.place();
@@ -376,13 +437,13 @@ export class StoryMode {
     this.roomLayer = null;
   }
 
-  async start(): Promise<'again' | 'exit'> {
+  async start(): Promise<StoryEnd> {
     this.setup();
     this.frame();
-    let result: 'again' | 'exit' = 'exit';
+    let result: StoryEnd = 'exit';
     try {
       do {
-        const ended = new Promise<'again' | 'exit'>((res) => (this.resolveEnd = res));
+        const ended = new Promise<StoryEnd>((res) => (this.resolveEnd = res));
         const timeline = this.timeline();
         result = await Promise.race([ended, timeline.then(() => ended)]);
         this.text.clear();
@@ -460,13 +521,15 @@ export class StoryMode {
     const msgs = space.messages;
     // T0 絵（3 秒）
     this.stage = 'T0';
+    this.introSkip = false; this.floorSkip = false; this.lastMsg = false; this.nextVoiceAt = -1;
     hud.skip.hidden = false;
+    hud.pause.hidden = true;   // 一時停止は語りの間だけ効くので、語りの間だけ見せる
     this.scaleNow = { ...this.scaleContain }; this.posNow = { x: 0, y: 0 }; this.strength = 0.05; this.rot = 0; this.vignette = 0;
     sound.ambient(space.audio.ambient || 'calm', -24);
     hud.title.textContent = pick(space.title, lang); hud.title.style.opacity = '1';
     if (this.img) { this.img.style.opacity = '1'; }
     await this.tween(1.5, (t) => (this.fade = t));
-    await wait(1500);
+    await this.introWait(1500);
     hud.title.style.opacity = '0';
     // 自動の品質調整（溶ける前に 1 回だけ）
     if (fluid && this.fpsSamples.length > 30) {
@@ -478,6 +541,8 @@ export class StoryMode {
     await this.enter();
     // T3 流れと語り
     this.stage = 'T3';
+    this.introSkip = false;
+    hud.pause.hidden = false;
     setTimeout(() => sound.drone(-22, 3), 4000);
     const roomReady = this.loadRoom();
     const voiceUrl = space.audio.voice ? this.ctx.base + space.audio.voice : null;
@@ -497,6 +562,8 @@ export class StoryMode {
     }
     for (let i = 0; i < msgs.length && this.running; i++) {
       const m = msgs[i];
+      this.lastMsg = i === msgs.length - 1;
+      if (voiceOk) this.nextVoiceAt = msgs[i + 1]?.at ?? -1;
       if (voiceOk) {
         // 声の文の開始時刻まで待つ（一時停止中は進まない）
         while (this.running && sound.voiceTime() < m.at && sound.voiceTime() >= 0 && !(await raced(voiceEnded, 100))) { /* wait */ }
@@ -505,9 +572,9 @@ export class StoryMode {
       this.text.lang = m[lang] ? lang : m.en ? 'en' : 'ja';
       await this.text.show(pick(m, lang), { reduced });
     }
-    if (voiceOk) await voiceEnded;
-    // 余韻の流れ：流体があるときだけ（静止画モードは止まった絵を待たせない）。「次へ」で T4 へ
-    this.floorSkip = false;
+    this.lastMsg = true; this.nextVoiceAt = -1;
+    while (voiceOk && this.running && !this.floorSkip && !(await raced(voiceEnded, 100))) { /* 声の終わりまで。「次へ」で抜ける */ }
+    // 余韻の流れ：流体があるときだけ（静止画モードは止まった絵を待たせない）。「次へ」で T4 へ。最後の文の途中で押した分もここで効く
     this.pausedTotal = 0;
     const tailStart = performance.now();
     while (this.running && fluid && !this.floorSkip && this.activeSince(tailStart) < AFTER_TEXT_S * 1000) await wait(100);
@@ -515,6 +582,7 @@ export class StoryMode {
     if (this.paused) this.setPaused(false);
     this.stage = 'T4';
     hud.skip.hidden = true;
+    hud.pause.hidden = true;
     sound.fadeOutAll(4);
     fluid?.setRestore(0.08);
     const back = { ...this.scaleNow }, target = { ...this.scaleContain }, pos = { ...this.posNow }, vig = this.vignette;
@@ -530,9 +598,13 @@ export class StoryMode {
     this.stage = 'T5';
     let landed = false;
     await roomReady;
+    // 比較の一文は先に帯へ入れておく（帯の高さが決まり、部屋の置き場所が着地のあとで動かない）
+    const compare = pick(this.room()?.compare, lang);
+    hud.caption.textContent = this.roomMesh && fluid && compare ? compare : '';
     if (this.roomMesh && this.roomMat && fluid) {
       const L = this.roomLayout();
       this.roomMesh.scale.set(L.roomScale.x, L.roomScale.y, 1);
+      this.roomMesh.position.set(L.roomPos.x, L.roomPos.y, 0);
       const s0 = { ...this.scaleNow }, p0 = { ...this.posNow };
       await this.tween(reduced ? 1.2 : 2.6, (t) => {
         this.roomMat!.opacity = Math.min(1, t * 1.6);
@@ -547,8 +619,8 @@ export class StoryMode {
     }
     fluid?.setRestore(this.restoreBase);
     // 着地の 1 秒後に、比較の一文を 1 行だけ（数字は出さない）。帯の中・ボタン列の上。文は先に入れて場所を取り、帯の高さが後で跳ねないように
-    const compare = pick(this.room()?.compare, lang);
     hud.caption.textContent = landed && compare ? compare : '';
+    setPhrases(hud.caption, lang);
     this.band?.classList.add('on');
     if (this.band) this.band.inert = false;
     hud.ending.style.opacity = '1'; hud.ending.style.pointerEvents = 'auto';

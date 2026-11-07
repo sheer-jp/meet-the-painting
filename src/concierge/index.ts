@@ -608,7 +608,9 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     return p;
   }
   const hideOpeners = () => thread.querySelector('.cg-openers')?.remove();
-  const setInputEnabled = (on: boolean) => { input.disabled = send.disabled = !on; };
+  // 空の「送る」は押せない見た目に（押しても何も起きないので）
+  const syncSend = () => { send.disabled = input.disabled || !input.value.trim(); };
+  const setInputEnabled = (on: boolean) => { input.disabled = !on; syncSend(); };
 
   function reset() {
     sess++;
@@ -1103,7 +1105,7 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
   // 体験の画面（#stage、page.css で全画面）は受付の HTML に無いので、ここで body の末尾に足す（C2 の上に重なる）
   async function enterHere(w: CatalogWork, vr: boolean) {
     if (entering) return;
-    entering = true;
+    setEntering(true);
     stat('enter', w.id, 'concierge');
     // 押した操作の中で：音の許可、声の準備、XR セッションの要求（CLAUDE.md の作業ルール）
     const sound = new Soundscape();
@@ -1126,14 +1128,30 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     try {
       await unlocking;
       const { run } = await import('../experience/main');
-      await run({ workId: w.id, lang, vr, fromQr: false, debug: false, sound, xrSession });
-      location.assign(done);
+      const ended = await run({ workId: w.id, lang, vr, fromQr: false, debug: false, sound, xrSession });
+      await leave(ended === 'rooms' ? `${done}#rooms` : done);   // 「部屋で見る」は作品ページの部屋の欄へ
     } catch (e) {
       // 体験を始められなかった：作品ページ（帯は「今日のあなたへの 1 点」）へ。そこからもう一度「入る」を押せる
       console.warn('体験を始められない。作品ページへ', e);
-      location.assign(withQuery(w.url, 'via', 'concierge'));
+      await leave(withQuery(w.url, 'via', 'concierge'));
     }
   }
+  // 次のページへ。届かないとき（通信が切れている）はブラウザのエラー画面に落とさず、ここに留まって知らせる。会話とおすすめは残る
+  async function leave(url: string) {
+    const ok = navigator.onLine !== false && await fetch(url, { method: 'HEAD', cache: 'no-store' }).then((r) => r.ok, () => false);
+    if (ok) { location.assign(url); return; }
+    setEntering(false);
+    fillPhrases(c2Line, t('cg_enter_fail', lang), lang); c2Line.dataset.other = '1';
+    c2.scrollTo({ top: 0 });
+  }
+  // 押したあと、読み込みの間も分かるように（主ボタンの文を「読み込み中…」に）。bfcache から戻ったときもここで戻す
+  function setEntering(on: boolean) {
+    entering = on;
+    const btn = c2.querySelector<HTMLElement>('.cg-enter');
+    if (btn) { btn.textContent = on ? `${t('loading', lang)}…` : t('rec_enter', lang); btn.toggleAttribute('aria-busy', on); }
+  }
+  // iOS の bfcache：戻ったときはメモリがそのまま残るので、「入っている途中」のまま押せなくなるのを防ぐ
+  window.addEventListener('pageshow', (e) => { if (e.persisted) setEntering(false); });
 
   // 「別のにする」：alt → AI に「別の絵を」の 1 往復 → 近い作品の順（API は呼ばない）
   // quiet：「では、こちらはどうでしょう」を言わない（?retry で「別の絵、考えてみるね」を先に言ったとき）
@@ -1145,8 +1163,18 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     // 11-07 作家「2 回目の『別のにする』の反応が遅い」：ボタンからはいつも即座に次の絵（alt → 近い順）。AI にもう 1 往復聞くのは、作品ページから戻ってきたとき（quiet）だけ
     if (!rulesMode && !extraUsed && quiet && !altFree) { aiOther(false); return; }
     const next = rulesMode && rulesRank ? rulesRank.find((id) => !shown.has(id)) ?? nearest(c, current.id) : altFree ?? nearest(c, current.id);
-    if (!next) return;
-    if (!quiet) line('ai', t('cg_other_line', lang));   // 会話の記録にも残す（「会話に戻る」で読める）
+    if (!next) {
+      // ほかに出せる絵が無い（売れて残り 1 点など）：黙らず、いまはこの 1 点だと言う
+      if (stage === 'present') { fillPhrases(c2Line, t('rec_only_one', lang), lang); c2Line.dataset.other = '1'; }
+      else {
+        line('ai', t('rec_only_one', lang));
+        const w = c.works.find((x) => x.id === current!.id);
+        if (w) showCard(c, { id: w.id, alt: null }, { reason: defaultReason(w), moods: pickMoods(w, lang).slice(0, 2) });
+      }
+      return;
+    }
+    // 会話の記録にも残す（「会話に戻る」で読める）。続けて押しても同じ文を並べない
+    if (!quiet && thread.lastElementChild?.textContent !== t('cg_other_line', lang)) line('ai', t('cg_other_line', lang));
     const w = c.works.find((x) => x.id === next)!;
     const inC2 = stage === 'present';
     showCard(c, { id: next, alt: null }, { reason: defaultReason(w), moods: pickMoods(w, lang).slice(0, 2) }, true);
@@ -1197,6 +1225,7 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     form.classList.remove('cg-form-in');
     void form.offsetWidth;
     form.classList.add('cg-form-in');
+    syncSend();
     input.focus();
     setFace('listening');
   }
@@ -1204,10 +1233,12 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     e.preventDefault();
     const v = input.value;
     input.value = '';
+    syncSend();
     say(v);
   });
   // 打ち始めたら選択肢を消し、キャラクターは聞く顔に
   input.addEventListener('input', () => {
+    syncSend();
     if (mode !== 'talk' || !input.value) return;
     if (messages.length === 0) hideOpeners();
     if (!busy) setFace('listening');

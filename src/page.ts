@@ -3,26 +3,28 @@ import { detectLang, rememberLang, applyLang, fillLangSelect, ensureLang, isLang
 import { Soundscape } from './audio/Soundscape';
 import { vrAvailable, bandFor } from './concierge/enter';
 import { sessionId, createFollowup } from './followup/trigger';
+import { setPhrases } from './text/phrases';
 import './ui/page.css';
 
 const workId = document.querySelector<HTMLMetaElement>('meta[name="work"]')?.content || null;
 let lang: Lang = detectLang();
 
+// 日本語は文節の間だけで改行（docs/DESIGN.md「改行の決まり」）。applyLang が文字を入れ直すので、そのたびに当て直す
+const PHRASED = '.via-band > span:first-child, .via-links a, .buy-note, .buy-sold-note, .rooms-hint-do, .rooms-hint-note, .actions .cg-enter-note, #buy, .fu-entry button, .page-note > span, .cg-skip, .cg-data';
+const phrasePage = () => document.querySelectorAll<HTMLElement>(PHRASED).forEach((el) => setPhrases(el, lang));
+const applyAll = (l: Lang) => { applyLang(document, l); phrasePage(); };
 // 日本語・英語はすぐ。ほかの言語は文言を読んでから当てる（英語を一瞬挟まない。読めなければ英語）
 function setLang(l: Lang) {
   lang = l; rememberLang(l);
-  if (isLangReady(l)) applyLang(document, l);
-  else void ensureLang(l).then(() => { if (lang === l) applyLang(document, l); });
+  if (isLangReady(l)) applyAll(l);
+  else void ensureLang(l).then(() => { if (lang === l) applyAll(l); });
 }
 setLang(lang);
 const select = document.getElementById('lang') as HTMLSelectElement | null;
 if (select) fillLangSelect(select, lang, setLang);
 
-// 作品の一文：日本語は文節の間だけで改行（docs/DESIGN.md「改行の決まり」）
-const statementJa = document.querySelector<HTMLElement>('.statement [data-lang="ja"]');
-if (statementJa) void import('./text/phrases').then(({ splitPhrases }) => {
-  statementJa.replaceChildren(...splitPhrases(statementJa.textContent || '', 'ja').map((ph) => { const s = document.createElement('span'); s.textContent = ph; s.style.display = 'inline-block'; return s; }));
-});
+// 作品の一文と物語：日本語の段落は言語の切り替えで文字が入れ直されないので、1 回だけ
+document.querySelectorAll<HTMLElement>('.statement [data-lang="ja"], .story [data-lang="ja"]').forEach((el) => setPhrases(el, 'ja'));
 
 // 販売状況：売れた作品に印を付け、購入ボタンを下げる（/api/works-status。取れないときは何もしない。1 点物の決済リンクは Stripe の側で止まる）
 const soldTargets = document.querySelectorAll<HTMLElement>('.gw-cap[data-title-ja], .other[data-title-ja]');
@@ -43,8 +45,12 @@ if (soldTargets.length || buyBox) {
     if (buyBox && s?.soldOut) {
       const note = document.createElement('p');
       note.className = 'buy-sold-note'; note.dataset.i18n = 'sold_note'; note.textContent = t('sold_note', lang);
+      setPhrases(note, lang);
       buyBox.replaceChildren(tag(s), note);
       document.querySelector('.via-band a[data-action="buy"]')?.remove();
+      // 題名の下の「販売中」も同じ状態に（ご予約済み／SOLD）
+      const avail = document.querySelector<HTMLElement>('.avail');
+      if (avail) { avail.dataset.i18n = s.status === 'SOLD' ? 'sold_tag' : 'reserved_tag'; avail.textContent = t(avail.dataset.i18n, lang); }
     }
   }).catch(() => {});
 }
@@ -61,8 +67,24 @@ document.getElementById('share')?.addEventListener('click', async () => {
   try {
     if (navigator.share) await navigator.share({ title, url: shareUrl });
     else { await navigator.clipboard.writeText(shareUrl); toast(t('copied', lang)); }
-  } catch {}
+  } catch (e) { if ((e as Error).name !== 'AbortError') toast(t('copy_fail', lang)); }
 });
+
+// 失敗の知らせ（文を残す。必要なら読み込み直すボタンも）。同じ場所には 1 つだけ
+function showNote(after: Element, msg: string, reload = false) {
+  after.parentElement?.querySelector(':scope > .page-note')?.remove();
+  const p = document.createElement('p');
+  p.className = 'page-note'; p.setAttribute('role', 'alert');
+  const s = document.createElement('span'); s.textContent = msg; setPhrases(s, lang);
+  p.appendChild(s);
+  if (reload) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'page-note-btn'; b.textContent = t('reload', lang);
+    b.addEventListener('click', () => location.reload());
+    p.appendChild(b);
+  }
+  after.after(p);
+}
 
 function toast(msg: string) {
   const el = document.createElement('div');
@@ -87,14 +109,15 @@ export function stat(ev: string, id: string | null = null, via: string | null = 
 // 受付（/。docs/ENTRANCE.md 3 節）：会話のコードは import() で読む（体験バンドルは読まない）
 // 読み込み前の操作（選択肢 / 送る）は止めておき、読めたらもう一度起こす
 const cg = document.getElementById('concierge');
+const RELOAD_KEY = 'mtp.cg-reload';
 if (cg) {
   // キャラクターは女の子（public/concierge/artist/）に確定（11-06 作家）。画像は HTML のまま
   const retry = url.searchParams.get('retry');
   if (retry) { url.searchParams.delete('retry'); history.replaceState(null, '', url.pathname + url.search + url.hash); }
   const api = document.querySelector<HTMLMetaElement>('meta[name="recommend-api"]')?.content.trim() || null;
-  let ready = false;
+  let ready = false, failed = false;
   const hold = (e: Event) => {
-    if (ready) return;
+    if (ready || failed) return;
     const target = e.target as Element;
     if (e.type === 'submit' || target.closest('button[data-opener-index]')) {
       e.preventDefault(); e.stopImmediatePropagation();
@@ -119,7 +142,18 @@ if (cg) {
   const loading = import('./concierge/index').then((m) => {
     m.mountConcierge(cg, { lang, api, configUrl: api ? `${api.replace(/\/$/, '')}/config` : '', catalogUrl: 'catalog.json', retry, stat });
     ready = true;
-  }).catch((e) => { console.warn('受付を読めない', e); });
+    try { sessionStorage.removeItem(RELOAD_KEY); } catch {}
+  }).catch(async (e) => {
+    console.warn('受付を読めない', e);
+    // 配置の直後に古い HTML を見ていると、部品の名前が変わって読めない。読み直せば新しい HTML が来るので 1 回だけ試す（通信が切れているときは読み直さない）
+    let tried = true;
+    try { tried = !!sessionStorage.getItem(RELOAD_KEY); sessionStorage.setItem(RELOAD_KEY, '1'); } catch {}
+    if (!tried && navigator.onLine !== false && await fetch(location.href, { method: 'HEAD', cache: 'no-store' }).then((r) => r.ok, () => false)) { location.reload(); return; }
+    failed = true;
+    await ensureLang(lang);
+    const thread = cg.querySelector('.cg-thread');
+    if (thread) { showNote(thread.lastElementChild || thread, t('cg_js_fail', lang), true); thread.scrollTop = thread.scrollHeight; }
+  });
 }
 
 // ギャラリー（/gallery/。docs/ENTRANCE.md 4 節）：おすすめの 1 点（?from=<id>）を最初に、PC はホイールの縦を横に
@@ -132,68 +166,8 @@ if (wall) {
     item.classList.add('is-for-you');
     item.querySelector<HTMLElement>('.gw-foryou')!.hidden = false;
   }
-  // 11-08：壁の画像は最初の絵のあとに読む（遅い回線でも絵が先。それまでは CSS のグラデーションの部屋）
-  const firstPaintings = [...wall.querySelectorAll<HTMLImageElement>('img[fetchpriority="high"]')];
-  const showWall = () => wall.closest('.gw')?.classList.add('has-wall');
-  void Promise.race([Promise.allSettled(firstPaintings.map((im) => im.decode())), new Promise((res) => setTimeout(res, 6000))]).then(showWall);
-  // P-4：壁が横にあふれるとき（狭い PC）だけ、右端の「→」と「横にスクロール」を出す
-  const gw = wall.closest<HTMLElement>('.gw');
-  // 11-08：端まで歩いたら（.is-end）しるしを消す
-  const fit = () => {
-    gw?.classList.toggle('is-scroll', wall.scrollWidth > wall.clientWidth + 1);
-    gw?.classList.toggle('is-end', wall.scrollLeft >= wall.scrollWidth - wall.clientWidth - 4);
-  };
-  fit(); new ResizeObserver(fit).observe(wall);
-  wall.addEventListener('scroll', fit, { passive: true });
-  // G-1：大きさの絞り込み。.gw に data-size を付け、CSS が該当しない作品を薄く（スマホは隠す）。壁の並び・実寸比は変えない
-  const items = [...wall.querySelectorAll<HTMLElement>('.gw-item')];
-  const chips = [...document.querySelectorAll<HTMLButtonElement>('.gw-filter .gw-chip')];
-  const applySize = (size: string, push: boolean) => {
-    if (!gw) return;
-    if (!/^[sml]$/.test(size) || chips.find((c) => c.dataset.size === size)?.disabled) size = 'all';
-    if (size === 'all') delete gw.dataset.size; else gw.dataset.size = size;
-    chips.forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.size === size)));
-    items.forEach((el) => {
-      const on = size === 'all' || el.dataset.size === size;
-      el.inert = !on;   // 薄い作品はタップもフォーカスもしない
-    });
-    if (push) {
-      if (size === 'all') url.searchParams.delete('size'); else url.searchParams.set('size', size);
-      history.replaceState(null, '', url.pathname + url.search + url.hash);
-    }
-  };
-  // 11-08：壁が横に長いので、選んだ大きさの絵が 1 点も画面に無ければ、そこまで歩く（1 点でも見えていれば動かない）
-  const walkToSelected = (smooth: boolean) => {
-    const on = items.filter((el) => !el.inert);
-    const box = wall.getBoundingClientRect();
-    if (!matchMedia('(min-width: 768px)').matches || !on.length || on.some((el) => { const r = el.getBoundingClientRect(); return r.left >= box.left && r.right <= box.right; })) return;
-    const left = wall.scrollLeft + on[0].getBoundingClientRect().left - box.left - box.width * .2;
-    wall.scrollTo({ left, behavior: smooth && !matchMedia('(prefers-reduced-motion: reduce)').matches ? 'smooth' : 'auto' });
-  };
-  chips.forEach((c) => c.addEventListener('click', () => { applySize(c.dataset.size || 'all', true); walkToSelected(true); }));
-  applySize(url.searchParams.get('size') || 'all', false);
-  walkToSelected(false);
-  wall.addEventListener('click', (e) => { const id = (e.target as Element).closest<HTMLElement>('.gw-item')?.dataset.id; if (id) stat('gallery_pick', id); });
-  // ホイールの縦を横に。11-08：1 刻みで跳ばず、すっと歩く（prefers-reduced-motion では動きを付けない）
-  let target = 0, gliding = 0;
-  const glide = () => {
-    const d = target - wall.scrollLeft;
-    if (Math.abs(d) < 2) { wall.scrollLeft = target; gliding = 0; return; }
-    wall.scrollLeft += Math.sign(d) * Math.max(1, Math.abs(d) * .16);
-    gliding = requestAnimationFrame(glide);
-  };
-  wall.addEventListener('wheel', (e) => {
-    if (!matchMedia('(min-width: 768px)').matches || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-    const max = wall.scrollWidth - wall.clientWidth;
-    if (max <= 0) return;
-    const from = gliding ? target : wall.scrollLeft;
-    const next = Math.min(max, Math.max(0, from + e.deltaY * (e.deltaMode === 1 ? 40 : 1)));
-    if (next === from) return;
-    e.preventDefault();
-    target = next;
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) wall.scrollLeft = next;
-    else if (!gliding) gliding = requestAnimationFrame(glide);
-  }, { passive: false });
+  // 壁を歩く操作と絞り込みは別の部品（受付と作品ページの JS を軽く保つ）
+  void import('./gallery').then((m) => m.mountGallery(wall, url, (id) => stat('gallery_pick', id)));
 }
 
 // 感想カード（docs/ADMIN.md 3 節）：絵を見たあとに案内役が小さく現れる。本体は必要になってから import()。読めなくても何も起きない
@@ -241,11 +215,20 @@ if (workId) {
     }
     band.append(label, links);
     document.querySelector('.actions')?.before(band);
+    phrasePage();
+  }
+  // 受付の絵の世界の「部屋で見る」から来たとき（#rooms）：帯が入ったあとの位置で部屋の欄に着く
+  if (location.hash === '#rooms' && rooms) {
+    const toRooms = () => rooms.scrollIntoView({ block: 'start' });
+    toRooms();
+    window.addEventListener('load', toRooms, { once: true });
   }
   // .btn の display が hidden 属性を上書きするので、HTML では inline の display:none で隠している（E-12 で判明）
   vrAvailable(forceVr).then((ok) => { if (ok) { enterVr.hidden = false; enterVr.style.display = ''; } });
   const start = async (vr: boolean) => {
     stat('enter', workId, ['concierge', 'gallery'].includes(url.searchParams.get('via') || '') ? url.searchParams.get('via') : 'page');
+    document.querySelector('.actions > .page-note')?.remove();
+    followup.cover();   // 開いている感想カードは体験の間だけ隠す（書きかけは残す）
     enter.disabled = true; enterVr.disabled = true;
     const label = enter.textContent; enter.textContent = t('loading', lang) + '…';
     // 「入る」のハンドラ内で（ユーザー操作の直後に）：音の許可、声の準備、XR セッションの要求
@@ -261,11 +244,13 @@ if (workId) {
     try {
       await unlocking;
       const { run } = await import('./experience/main');
-      await run({ workId, lang, vr, fromQr, debug, sound, xrSession, onExit: () => { enter.disabled = false; enterVr.disabled = false; enter.textContent = label; followup.afterExperience(workId); } });
+      const ended = await run({ workId, lang, vr, fromQr, debug, sound, xrSession, onExit: () => { enter.disabled = false; enterVr.disabled = false; enter.textContent = label; followup.afterExperience(workId); } });
+      if (ended === 'rooms') rooms?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     } catch (e) {
       console.error(e);
       enter.disabled = false; enterVr.disabled = false; enter.textContent = label;
-      toast(String((e as Error).message || e));
+      followup.uncover();
+      showNote(document.querySelector('.actions > .cg-enter-note') || enter, t('exp_load_fail', lang), true);
     }
   };
   enter.addEventListener('click', () => start(false));
@@ -280,6 +265,7 @@ if (workId) {
       import('./ui/lightbox').then(async (m) => { await ensureLang(lang); return m; }),
     ]).catch((e) => { loading = null; throw e; }));
     const imgs = figs.map((f) => f.querySelector('img')!);
+    const hint = document.querySelector('.rooms-hint');
     const open = async (i: number) => {
       try {
         const [space, mod] = await load();
@@ -287,8 +273,14 @@ if (workId) {
         // 素の部屋と絵の写真（絵を別の層にしてドラッグで動かす。base が無い古い space.json は合成画像のまま）
         const bases = sp.rooms.map((r) => (r.base ? `${assetBase}${r.base}` : null));
         const painting = sp.painting ? `${assetBase}works/${workId}/generated/${sp.painting}` : undefined;
-        mod.openLightbox({ space: sp, srcs: imgs.map((im) => im.currentSrc || im.src), bases, painting, index: i, lang, returnFocus: imgs[i], onClose: () => followup.afterRooms(workId) });
-      } catch (e) { console.warn('拡大表示を開けない', e); }
+        followup.cover();
+        hint?.parentElement?.querySelector(':scope > .page-note')?.remove();
+        mod.openLightbox({ space: sp, srcs: imgs.map((im) => im.currentSrc || im.src), bases, painting, index: i, lang, returnFocus: imgs[i], onClose: () => { followup.uncover(); followup.afterRooms(workId); } });
+      } catch (e) {
+        console.warn('拡大表示を開けない', e);
+        await ensureLang(lang);
+        if (hint) showNote(hint, t('rooms_load_fail', lang));   // 通信が戻ればもう一度押せる（load は失敗を覚えない）
+      }
     };
     imgs.forEach((im, i) => {
       im.setAttribute('role', 'button'); im.tabIndex = 0;

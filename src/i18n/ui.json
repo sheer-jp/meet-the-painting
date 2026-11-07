@@ -107,30 +107,6 @@
     "it": "Casa spaziosa",
     "pt": "Casa espaçosa"
   },
-  "close_view": {
-    "ja": "寄り",
-    "en": "Close-up",
-    "zh-Hans": "近景",
-    "zh-Hant": "近景",
-    "ko": "가까이",
-    "fr": "Gros plan",
-    "de": "Nahaufnahme",
-    "es": "Primer plano",
-    "it": "Primo piano",
-    "pt": "Aproximação"
-  },
-  "wall_note": {
-    "ja": "壁幅 約 {w} m として合成",
-    "en": "Composited assuming a wall about {w} m wide",
-    "zh-Hans": "按墙宽约 {w} m 合成",
-    "zh-Hant": "按牆寬約 {w} m 合成",
-    "ko": "벽 너비 약 {w} m 기준으로 합성",
-    "fr": "Composé pour un mur d’environ {w} m",
-    "de": "Für eine ca. {w} m breite Wand",
-    "es": "Para una pared de unos {w} m",
-    "it": "Per una parete di circa {w} m",
-    "pt": "Para uma parede de cerca de {w} m"
-  },
   "story_note": {
     "ja": "小さな物語",
     "en": "A short story",
@@ -347,30 +323,6 @@
     "it": "Galleria",
     "pt": "Galeria"
   },
-  "tagline": {
-    "ja": "絵の中に入る",
-    "en": "Enter the painting",
-    "zh-Hans": "走进画中",
-    "zh-Hant": "走進畫中",
-    "ko": "그림 속으로",
-    "fr": "Entrer dans la peinture",
-    "de": "In das Bild eintreten",
-    "es": "Entrar en la pintura",
-    "it": "Entrare nel dipinto",
-    "pt": "Entrar na pintura"
-  },
-  "unsupported": {
-    "ja": "この端末では流体が動かないため、静止画で表示します",
-    "en": "This device can't run the fluid, so the painting is shown as a still image",
-    "zh-Hans": "此设备无法运行流体效果，将以静态图片显示",
-    "zh-Hant": "此裝置無法執行流體效果，將以靜態圖片顯示",
-    "ko": "이 기기에서는 유체 효과를 실행할 수 없어 정지 이미지로 표시합니다",
-    "fr": "Cet appareil ne peut pas afficher le fluide ; image fixe",
-    "de": "Dieses Gerät kann die Flüssigkeit nicht darstellen; Standbild",
-    "es": "Este dispositivo no puede mostrar el fluido; imagen fija",
-    "it": "Questo dispositivo non supporta il fluido; immagine fissa",
-    "pt": "Este dispositivo não suporta o fluido; imagem fixa"
-  },
   "tap_for_size": {
     "ja": "画像をタップすると、寸法と詳しい説明。絵をドラッグして、好きな場所に置けます",
     "en": "Tap an image for its size and details. Drag the painting to place it wherever you like",
@@ -514,18 +466,6 @@
     "es": "Entrar en el cuadro",
     "it": "Entra nel quadro",
     "pt": "Entrar no quadro"
-  },
-  "rec_or": {
-    "ja": "あるいは",
-    "en": "Or perhaps",
-    "zh-Hans": "或者",
-    "zh-Hant": "或者",
-    "ko": "혹은",
-    "fr": "Ou peut-être",
-    "de": "Oder vielleicht",
-    "es": "O quizá",
-    "it": "O forse",
-    "pt": "Ou talvez"
   },
   "rec_note": {
     "ja": "このおすすめは AI が作家の言葉をもとに選んだものです",
@@ -948,16 +888,16 @@
     "pt": "Ver outra vez a sugestão"
   },
   "cg_after_head": {
-    "ja": "絵の中から戻ってきました",
-    "en": "Back from inside the painting",
-    "zh-Hans": "从画中回来了",
-    "zh-Hant": "從畫中回來了",
-    "ko": "그림 속에서 돌아왔어",
-    "fr": "De retour du tableau",
-    "de": "Zurück aus dem Bild",
-    "es": "De vuelta del cuadro",
-    "it": "Di ritorno dal quadro",
-    "pt": "De volta de dentro do quadro"
+    "ja": "絵の世界から戻ってきました",
+    "en": "Back from the painting's world",
+    "zh-Hans": "从画的世界回来了",
+    "zh-Hant": "從畫的世界回來了",
+    "ko": "그림의 세계에서 돌아왔어",
+    "fr": "De retour du monde du tableau",
+    "de": "Zurück aus der Welt des Bildes",
+    "es": "De vuelta del mundo del cuadro",
+    "it": "Di ritorno dal mondo del quadro",
+    "pt": "De volta do mundo do quadro"
   },
   "cg_after_again": {
     "ja": "もう一度のぞく",
@@ -1030,18 +970,6 @@
     "es": "Arrastra el cuadro adonde quieras",
     "it": "Trascina il quadro dove preferisci",
     "pt": "Arraste o quadro para onde quiser"
-  },
-  "drag_hint_place": {
-    "ja": "絵をドラッグして、横に動かせます",
-    "en": "Drag the painting to slide it sideways",
-    "zh-Hans": "拖动画作，可左右移动",
-    "zh-Hant": "拖曳畫作，可左右移動",
-    "ko": "그림을 드래그해 좌우로 옮길 수 있습니다",
-    "fr": "Fais glisser le tableau pour le décaler sur le côté",
-    "de": "Zieh das Bild, um es seitlich zu verschieben",
-    "es": "Arrastra el cuadro para moverlo hacia los lados",
-    "it": "Trascina il quadro per spostarlo di lato",
-    "pt": "Arraste o quadro para o mover para os lados"
   },
   "gw_scroll": {
     "ja": "横にスクロール",
@@ -1642,5 +1570,101 @@
     "es": "Enviar tu impresión de este cuadro",
     "it": "Invia la tua impressione su questo quadro",
     "pt": "Enviar sua impressão sobre este quadro"
+  },
+  "exp_load_fail": {
+    "ja": "絵の世界を開けませんでした。ページを読み込み直してみてください。",
+    "en": "We couldn't open the painting's world. Please try reloading the page.",
+    "zh-Hans": "无法打开画的世界。请重新加载页面试试。",
+    "zh-Hant": "無法開啟畫的世界。請重新載入頁面試試。",
+    "ko": "그림의 세계를 열 수 없었어요. 페이지를 새로고침해 보세요.",
+    "fr": "Impossible d'ouvrir le monde du tableau. Essayez de recharger la page.",
+    "de": "Die Welt des Bildes ließ sich nicht öffnen. Bitte lade die Seite neu.",
+    "es": "No se pudo abrir el mundo del cuadro. Prueba a recargar la página.",
+    "it": "Non è stato possibile aprire il mondo del quadro. Prova a ricaricare la pagina.",
+    "pt": "Não foi possível abrir o mundo do quadro. Tente recarregar a página."
+  },
+  "reload": {
+    "ja": "読み込み直す",
+    "en": "Reload",
+    "zh-Hans": "重新加载",
+    "zh-Hant": "重新載入",
+    "ko": "새로고침",
+    "fr": "Recharger",
+    "de": "Neu laden",
+    "es": "Recargar",
+    "it": "Ricarica",
+    "pt": "Recarregar"
+  },
+  "rooms_load_fail": {
+    "ja": "拡大表示を開けませんでした。通信を確かめて、もう一度押してください。",
+    "en": "We couldn't open the larger view. Please check your connection and try again.",
+    "zh-Hans": "无法打开放大视图。请检查网络后再按一次。",
+    "zh-Hant": "無法開啟放大檢視。請檢查網路後再按一次。",
+    "ko": "크게 보기를 열 수 없었어요. 연결을 확인하고 다시 눌러 주세요.",
+    "fr": "Impossible d'ouvrir la vue agrandie. Vérifiez votre connexion et réessayez.",
+    "de": "Die große Ansicht ließ sich nicht öffnen. Bitte prüfe die Verbindung und versuche es noch einmal.",
+    "es": "No se pudo abrir la vista ampliada. Comprueba la conexión y vuelve a intentarlo.",
+    "it": "Non è stato possibile aprire la vista ingrandita. Controlla la connessione e riprova.",
+    "pt": "Não foi possível abrir a vista ampliada. Verifique a ligação e tente de novo."
+  },
+  "fu_ai_note": {
+    "ja": "返事を作るため AI に渡します",
+    "en": "Your words go to an AI to write a reply",
+    "zh-Hans": "为了生成回复，内容会交给 AI",
+    "zh-Hant": "為了產生回覆，內容會交給 AI",
+    "ko": "답장을 만들기 위해 AI에 전달해요",
+    "fr": "Vos mots sont transmis à une IA pour écrire une réponse",
+    "de": "Deine Worte gehen an eine KI, um eine Antwort zu schreiben",
+    "es": "Tus palabras pasan a una IA para escribir una respuesta",
+    "it": "Le tue parole vanno a una IA per scrivere una risposta",
+    "pt": "As suas palavras vão para uma IA para escrever uma resposta"
+  },
+  "fu_need_words": {
+    "ja": "文を入れると届けられます",
+    "en": "Write something to send it",
+    "zh-Hans": "写下文字后才能送达",
+    "zh-Hant": "寫下文字後才能送達",
+    "ko": "글을 쓰면 전할 수 있어요",
+    "fr": "Écrivez quelques mots pour l'envoyer",
+    "de": "Schreib etwas, um es zu senden",
+    "es": "Escribe algo para enviarlo",
+    "it": "Scrivi qualcosa per inviarlo",
+    "pt": "Escreva algo para enviar"
+  },
+  "cg_enter_fail": {
+    "ja": "いまは絵の世界を開けません。通信を確かめて、もう一度押してください。",
+    "en": "The painting's world won't open right now. Please check your connection and try again.",
+    "zh-Hans": "现在无法打开画的世界。请检查网络后再按一次。",
+    "zh-Hant": "現在無法開啟畫的世界。請檢查網路後再按一次。",
+    "ko": "지금은 그림의 세계를 열 수 없어요. 연결을 확인하고 다시 눌러 주세요.",
+    "fr": "Le monde du tableau ne s'ouvre pas pour l'instant. Vérifiez votre connexion et réessayez.",
+    "de": "Die Welt des Bildes öffnet sich gerade nicht. Bitte prüfe die Verbindung und versuche es noch einmal.",
+    "es": "Ahora no se puede abrir el mundo del cuadro. Comprueba la conexión y vuelve a intentarlo.",
+    "it": "Ora il mondo del quadro non si apre. Controlla la connessione e riprova.",
+    "pt": "Agora não é possível abrir o mundo do quadro. Verifique a ligação e tente de novo."
+  },
+  "cg_js_fail": {
+    "ja": "受付を読み込めませんでした。読み込み直してください。",
+    "en": "We couldn't load the reception. Please reload the page.",
+    "zh-Hans": "无法加载接待页面。请重新加载。",
+    "zh-Hant": "無法載入接待頁面。請重新載入。",
+    "ko": "안내 화면을 불러올 수 없었어요. 새로고침해 주세요.",
+    "fr": "Impossible de charger l'accueil. Veuillez recharger la page.",
+    "de": "Der Empfang ließ sich nicht laden. Bitte lade die Seite neu.",
+    "es": "No se pudo cargar la recepción. Recarga la página, por favor.",
+    "it": "Non è stato possibile caricare l'accoglienza. Ricarica la pagina.",
+    "pt": "Não foi possível carregar a receção. Recarregue a página."
+  },
+  "copy_fail": {
+    "ja": "コピーできませんでした",
+    "en": "Couldn't copy the link",
+    "zh-Hans": "无法复制",
+    "zh-Hant": "無法複製",
+    "ko": "복사하지 못했어요",
+    "fr": "Copie impossible",
+    "de": "Kopieren nicht möglich",
+    "es": "No se pudo copiar",
+    "it": "Copia non riuscita",
+    "pt": "Não foi possível copiar"
   }
 }

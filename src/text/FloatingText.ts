@@ -61,10 +61,12 @@ export class ScreenText {
       if (this.paused) a.pause();
       a.onfinish = () => res();
     });
-    const skippable = (p: Promise<void>) => new Promise<void>((res) => { this.resolveSkip = res; p.then(res); });
+    // 「次へ」は 1 回で次の文へ（現れている途中でも留まる時間を飛ばす）
+    let skipped = false;
+    const skippable = (p: Promise<void>) => new Promise<void>((res) => { this.resolveSkip = () => { skipped = true; res(); }; p.then(res); });
     await skippable(anim([{ opacity: 0, transform: 'translateY(-50%) scale(.3)', filter: 'blur(8px)' }, { opacity: 1, transform: 'translateY(-50%) scale(1)', filter: 'blur(0px)' }], rise * 1000));
     if (my !== this.token) return;
-    await skippable(this.wait(hold * 1000));
+    if (!skipped) await skippable(this.wait(hold * 1000));
     if (my !== this.token) return;
     this.resolveSkip = null;
     await anim([{ opacity: 1, transform: 'translateY(-50%) scale(1)', filter: 'blur(0px)' }, { opacity: 0, transform: 'translateY(-50%) scale(1.15)', filter: 'blur(10px)' }], dissolve * 1000);

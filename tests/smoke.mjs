@@ -3,7 +3,9 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 const { chromium } = createRequire(import.meta.url)('playwright');   // 事前インストール済みの Playwright を使う
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
+import { runRegress } from './regress.mjs';
 
 const args = process.argv.slice(2);
 const shotsDir = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
@@ -205,9 +207,8 @@ async function entranceCase(name, viewport) {
     const foot = await page.locator('.cg2-foot button').allTextContents();
     check(foot.join('/') === '会話に戻る/もう一度、話す', `${name}: 下に小さく ${foot.join('・')}`);
     if (viewport.width < 768) {
-      // スマホ：キャンバスは幅いっぱい（実寸比のまま）
-      const fill = await page.evaluate(() => { const s = document.querySelector('.cg2 .cg-stage').getBoundingClientRect(), c = document.querySelector('.cg2-in').getBoundingClientRect(); return [Math.round(s.width), Math.round(c.width)]; });
-      check(Math.abs(fill[0] - fill[1]) <= 1, `${name}: キャンバスは幅いっぱい（${fill.join(' / ')}px）`);
+      // 主ボタンが最初の画面に入る（絵の大きさは画面の高さで抑える。#19）
+      check(await inView(page, c2Card.locator('.cg-enter')), `${name}: C2 の「絵の世界をのぞく」が最初から見える`);
       const sideways = await page.locator('.cg2').evaluate((el) => [el.scrollWidth, el.clientWidth]);
       check(sideways[0] <= sideways[1], `${name}: C2 は横にスクロールしない（${sideways.join(' / ')}）`);
     } else {
@@ -258,14 +259,14 @@ async function entranceCase(name, viewport) {
     const stageOnTop = await page.evaluate(() => { const el = document.elementFromPoint(innerWidth / 2, innerHeight / 2); return !!el?.closest('#stage'); });
     check(stageOnTop, `${name}: 体験の画面が C2 の上に重なる`);
     await shot('c2-t0');
-    // 閉じる → 作品ページ（?via=concierge&after=1）の帯「絵の中から戻ってきました」
+    // 閉じる → 作品ページ（?via=concierge&after=1）の帯「絵の世界から戻ってきました」
     await page.click('.hud .close');
     await page.waitForURL(new RegExp(`/w/${secondId}/\\?via=concierge&after=1$`), { timeout: 10000 });
     const afterBand = page.locator('.via-band[data-kind="after"]');
     await afterBand.waitFor({ timeout: 5000 });
     const afterText = (await afterBand.textContent())?.replace(/\s+/g, '');
     const hasRooms = await page.locator('.rooms').count() > 0;
-    check(/絵の中から戻ってきました/.test(afterText || '') && /もう一度のぞく/.test(afterText || '') && /部屋で見る/.test(afterText || '') === hasRooms && /ギャラリー全体を見る/.test(afterText || ''), `${name}: 閉じると作品ページの帯（${afterText}）`);
+    check(/絵の世界から戻ってきました/.test(afterText || '') && /もう一度のぞく/.test(afterText || '') && /部屋で見る/.test(afterText || '') === hasRooms && /ギャラリー全体を見る/.test(afterText || ''), `${name}: 閉じると作品ページの帯（${afterText}）`);
     const s0Enter = [(await page.locator('#enter').textContent())?.trim(), (await page.locator('.actions .cg-enter-note').textContent())?.trim()];
     check(s0Enter[0] === '絵の世界をのぞく' && s0Enter[1] === '色が動き出し、作家の言葉が流れます（約 1 分）', `${name}: 作品ページの「${s0Enter[0]}」とその下の 1 行（${s0Enter[1]}）`);
     check(await page.locator('#enter-vr').isHidden(), `${name}: 作品ページも VR が使えない端末では「VR でのぞく」が出ない`);
@@ -474,7 +475,7 @@ try {
   const items = await page.locator('.gw-item').count();
   check(items === 6, `gallery: 作品 ${items} 点`);
   const footText = (await page.locator('footer').textContent())?.trim();
-  check(footText === '© SHEER', `gallery: フッターは「© SHEER」だけ（${footText}）`);
+  check(footText === '© SHEER記録について', `gallery: フッターは「© SHEER」と「記録について」（${footText}）`);
   // G-1：大きさの絞り込み。フランス語のチップ、「小」で F0〜F4 の 4 点だけ残り、壁の並びは変わらない、?size=s
   const chipText = (await page.locator('.gw-chip[data-size="s"]').textContent())?.trim();
   check(chipText === 'Petites (moins de 35 cm)', `gallery: フランス語設定でチップもフランス語（${chipText}）`);
@@ -508,5 +509,24 @@ try {
 } finally {
   stop();
 }
+// 管理ページの HTML（.gitignore で落ちていた。QA #1）
+{
+  const r = await fetch(`http://localhost:${PORT}/admin/`);
+  check(r.status === 200 && /絵と出会う/.test(await r.text()), `/admin/ が 200（${r.status}）`);
+}
+// JS の予算（CLAUDE.md、gzip）：作品ページ 20KB、受付 27KB（ページ + 受付の会話）、体験 300KB
+{
+  const dir = 'dist/assets';
+  const sizeOf = (re) => readdirSync(dir).filter((f) => re.test(f) && f.endsWith('.js')).map((f) => ({ f, kb: gzipSync(readFileSync(`${dir}/${f}`)).length / 1024 }));
+  const pageKb = sizeOf(/^page-/)[0].kb;
+  const conciergeKb = Math.max(...sizeOf(/^index-/).filter(({ f }) => readFileSync(`${dir}/${f}`, 'utf8').includes('cg-thread')).map((x) => x.kb));
+  const mainKb = sizeOf(/^main-/)[0].kb;
+  check(pageKb <= 20, `JS 予算：ページ ${pageKb.toFixed(1)}KB ≤ 20KB`);
+  check(pageKb + conciergeKb <= 27, `JS 予算：受付 ${(pageKb + conciergeKb).toFixed(1)}KB ≤ 27KB`);
+  check(mainKb <= 300, `JS 予算：体験 ${mainKb.toFixed(1)}KB ≤ 300KB`);
+}
+// QA の指摘の回帰テスト（Chromium と WebKit）
+await runRegress({ base: `http://localhost:${PORT}`, kinds: (process.env.REGRESS_KINDS || 'chromium,webkit').split(','), shots: shotsDir, check });
+
 console.log(failed ? `\n${failed} 件失敗` : '\nすべて通過');
 process.exit(failed ? 1 : 0);

@@ -14,7 +14,8 @@ export interface RunOptions {
 
 const loadTexture = (url: string) => new Promise<THREE.Texture>((res, rej) => new THREE.TextureLoader().load(url, res, undefined, rej));
 
-export async function run(o: RunOptions): Promise<void> {
+// 'rooms'：終わりの画面の「部屋で見る」で閉じた。呼び出し側が部屋の欄へ連れていく
+export async function run(o: RunOptions): Promise<'exit' | 'rooms'> {
   // ?space=flat：空間モードを WebXR 無しの平面カメラで動かす検査モード（docs/VR_DEPTH.md 5 節、V-4）。流体は VR と同じ等距離円筒
   const flatSpace = new URLSearchParams(location.search).get('space') === 'flat';
   if (flatSpace) o = { ...o, vr: true, xrSession: null };
@@ -97,8 +98,9 @@ export async function run(o: RunOptions): Promise<void> {
     }
     if (!o.vr || fellBack || !renderer || !fluid) {
       fluid?.reset();
-      await new StoryMode(ctx).start();
+      if (await new StoryMode(ctx).start() === 'rooms') return 'rooms';
     }
+    return 'exit';
   } finally {
     exit();
   }

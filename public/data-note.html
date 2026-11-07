@@ -11,46 +11,205 @@
   h2 { font: 400 15px/1.6 "Shippori Mincho", serif; margin: 28px 0 4px; }
   p, ul { margin: 0 0 8px; } ul { padding-left: 1.2em; }
   section + section { margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(20,18,16,.22); }
+  section[hidden] { display: none; }
   a { color: inherit; text-underline-offset: 3px; }
+  .langs { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 0 0 24px; font-size: 12px; }
+  .langs a { min-height: 32px; display: inline-flex; align-items: center; }
+  .back { margin-top: 28px; } .back a { min-height: 44px; display: inline-flex; align-items: center; }
 </style>
 </head>
 <body>
-<!-- docs/ADMIN.md 1 節と同じ内容。変えたら両方を直す -->
-<section lang="ja">
+<!-- docs/ADMIN.md 1 節と同じ内容。変えたら両方を直す。JS が無ければ全言語が並ぶ -->
+<nav class="langs" aria-label="Language"><a href="#" lang="ja" data-show="ja">日本語</a> <a href="#" lang="en" data-show="en">English</a> <a href="#" lang="zh-Hans" data-show="zh-Hans">简体中文</a> <a href="#" lang="zh-Hant" data-show="zh-Hant">繁體中文</a> <a href="#" lang="ko" data-show="ko">한국어</a> <a href="#" lang="fr" data-show="fr">Français</a> <a href="#" lang="de" data-show="de">Deutsch</a> <a href="#" lang="es" data-show="es">Español</a> <a href="#" lang="it" data-show="it">Italiano</a> <a href="#" lang="pt" data-show="pt">Português</a></nav>
+<section lang="ja" data-lang="ja">
   <h1>記録について</h1>
   <p>絵と出会う（SHEER Gallery）で何を残しているかを書きます。作家が、どの絵がどんなふうに届いたかを知るためのものです。</p>
   <h2>作家に届くもの</h2>
   <p>感想カードで「作家に届ける」を押した文と反応です。押すまで保存しません。作家が消すまで残ります。お名前や連絡先は書かないでください。</p>
   <h2>180 日残すもの</h2>
-  <ul>
-    <li>押した選択肢、案内役の問い（用意してある問いのうち、どれに近かったか）、すすめた作品</li>
-    <li>「別のにする」、絵の世界や作品ページを開いたこと、購入リンクを押したこと、使っている言語</li>
-    <li>自由に書いたことがあったかどうか（有無だけ）</li>
-  </ul>
+  <ul><li>押した選択肢、案内役の問い（用意してある問いのうち、どれに近かったか）、すすめた作品</li><li>「別のにする」、絵の世界や作品ページを開いたこと、購入リンクを押したこと、使っている言語</li><li>自由に書いたことがあったかどうか（有無だけ）</li></ul>
   <p>これらはタブごとのランダムな番号でつなぎます。タブを閉じると、次は別の番号です。ブラウザの Global Privacy Control が有効なら番号を作らず、回数だけを数えます。</p>
+  <h2>回数の累計</h2>
+  <p>受付の会話の回数、すすめた回数、絵の世界に入った回数、購入リンクを押した回数などを、誰のものか分からない数として数えます。累計は消えずに残り、日ごとの数は 40 日で消えます。</p>
+  <h2>あなたのブラウザに残るもの</h2>
+  <ul><li>localStorage（残り続けます）：選んだ言語、感想カードを閉じた・送った作品の印、合言葉を使っているときはその合言葉</li><li>sessionStorage（タブを閉じると消えます）：上の番号、このタブで感想カードを出した作品、扉を見た印、直前のおすすめ</li></ul>
+  <h2>外のサービス</h2>
+  <ul><li>Cloudflare：このサイトの置き場所です。ページの閲覧数を Cloudflare Web Analytics で見ています。Cookie は使いません</li><li>Claude API（Anthropic）：受付の会話と感想カードの返事を作るために、書いた文を渡します</li><li>Google Fonts：文字の書体を読み込みます</li></ul>
   <h2>残さないもの</h2>
-  <ul>
-    <li>受付の会話で書いた文、感想カードで書いて送らなかった文。返事を作るために Claude API（Anthropic）へ渡しますが、このサイトには保存しません</li>
-    <li>IP アドレス、メールアドレス、ブラウザの種類（User-Agent）、位置</li>
-  </ul>
+  <ul><li>受付の会話で書いた文、感想カードで書いて送らなかった文。返事を作るために Claude API へ渡しますが、このサイトには保存しません</li><li>IP アドレス、メールアドレス、ブラウザの種類（User-Agent）、位置。IP アドレスは短い時間の回数制限のためメモリの中で数えるだけで、書き残しません</li></ul>
+  <p class="back"><a href="/">← 受付に戻る</a></p>
 </section>
-<section lang="en">
+<section lang="en" data-lang="en">
   <h1>About what is recorded</h1>
   <p>This is what Meet the Painting (SHEER Gallery) keeps, so the artist can learn how her paintings reach people.</p>
   <h2>What reaches the artist</h2>
   <p>The words and reaction you send with "Send to the artist" on the feedback card. Nothing is saved until you press it, and it stays until the artist deletes it. Please leave out your name and contact details.</p>
   <h2>Kept for 180 days</h2>
-  <ul>
-    <li>The choices you press, which of the prepared questions the guide asked, and the paintings suggested</li>
-    <li>"Show another", opening the painting's world or page, pressing the purchase link, and your language</li>
-    <li>Whether you wrote something freely (yes or no only)</li>
-  </ul>
+  <ul><li>The choices you press, which of the prepared questions the guide asked, and the paintings suggested</li><li>"Show another", opening the painting's world or page, pressing the purchase link, and your language</li><li>Whether you wrote something freely (yes or no only)</li></ul>
   <p>These are linked by a random number for each browser tab. A new tab gets a new number. If your browser sends Global Privacy Control, no number is created and only counts are kept.</p>
+  <h2>Running totals</h2>
+  <p>Anonymous counts: how many conversations, suggestions, visits to a painting's world, presses of the purchase link. The totals stay; the daily counts disappear after 40 days.</p>
+  <h2>What stays in your browser</h2>
+  <ul><li>localStorage (stays until you clear it): your language, a mark for paintings whose feedback card you closed or sent, and the passphrase if one is in use</li><li>sessionStorage (gone when the tab closes): the number above, which paintings showed a card in this tab, that you saw the door, and the last suggestion</li></ul>
+  <h2>Outside services</h2>
+  <ul><li>Cloudflare hosts this site. Page views are measured with Cloudflare Web Analytics, which uses no cookies</li><li>Claude API (Anthropic) receives what you write, to make the replies in the reception and on the feedback card</li><li>Google Fonts provides the typefaces</li></ul>
   <h2>Not kept</h2>
-  <ul>
-    <li>What you type in the reception chat, and anything you write on the feedback card but do not send. It goes to the Claude API (Anthropic) to make a reply, but this site does not save it</li>
-    <li>IP address, email address, browser type (User-Agent), or location</li>
-  </ul>
+  <ul><li>What you type in the reception chat, and anything you write on the feedback card but do not send. It goes to the Claude API to make a reply, but this site does not save it</li><li>IP address, email address, browser type (User-Agent), or location. The IP address is only counted in memory for short-term rate limits and is never written down</li></ul>
+  <p class="back"><a href="/">← Back to the reception</a></p>
 </section>
+<section lang="zh-Hans" data-lang="zh-Hans">
+  <h1>关于记录</h1>
+  <p>这里说明“与画相遇”（SHEER Gallery）保留了什么。目的是让作家了解每幅画是如何传达给大家的。</p>
+  <h2>会送达作家的内容</h2>
+  <p>在感想卡片上按下“送给作家”的文字和反应。按下之前不会保存。会一直保留到作家删除。请不要写姓名或联系方式。</p>
+  <h2>保留 180 天</h2>
+  <ul><li>按下的选项、向导提出的问题（最接近预设问题中的哪一个）、推荐的作品</li><li>“换一幅”、打开画的世界或作品页、按下购买链接、使用的语言</li><li>是否自由书写过（仅有无）</li></ul>
+  <p>这些内容通过每个标签页的随机编号关联。关闭标签页后，下次是新的编号。如果浏览器启用了 Global Privacy Control，则不生成编号，只计次数。</p>
+  <h2>累计次数</h2>
+  <p>以匿名数字统计对话、推荐、进入画的世界、按下购买链接等次数。累计数会保留，每日数字 40 天后消失。</p>
+  <h2>留在您浏览器中的内容</h2>
+  <ul><li>localStorage（一直保留）：所选语言、已关闭或已发送感想卡片的作品标记、使用口令时的口令</li><li>sessionStorage（关闭标签页即消失）：上述编号、此标签页显示过卡片的作品、看过门的标记、上一次的推荐</li></ul>
+  <h2>外部服务</h2>
+  <ul><li>Cloudflare：本站的托管方。用 Cloudflare Web Analytics 查看浏览量，不使用 Cookie</li><li>Claude API（Anthropic）：为了生成接待和感想卡片的回复，会传送您写的文字</li><li>Google Fonts：加载字体</li></ul>
+  <h2>不保留的内容</h2>
+  <ul><li>在接待对话中写的文字，以及在感想卡片上写了但没有发送的文字。为生成回复会传给 Claude API，但本站不保存</li><li>IP 地址、电子邮件地址、浏览器类型（User-Agent）、位置。IP 地址仅在内存中用于短时间的次数限制，不会写下来</li></ul>
+  <p class="back"><a href="/">← 返回接待页</a></p>
+</section>
+<section lang="zh-Hant" data-lang="zh-Hant">
+  <h1>關於記錄</h1>
+  <p>這裡說明「與畫相遇」（SHEER Gallery）保留了什麼。目的是讓作家了解每幅畫是如何傳達給大家的。</p>
+  <h2>會送達作家的內容</h2>
+  <p>在感想卡片上按下「送給作家」的文字和反應。按下之前不會保存。會一直保留到作家刪除。請不要寫姓名或聯絡方式。</p>
+  <h2>保留 180 天</h2>
+  <ul><li>按下的選項、嚮導提出的問題（最接近預設問題中的哪一個）、推薦的作品</li><li>「換一幅」、開啟畫的世界或作品頁、按下購買連結、使用的語言</li><li>是否自由書寫過（僅有無）</li></ul>
+  <p>這些內容透過每個分頁的隨機編號關聯。關閉分頁後，下次是新的編號。如果瀏覽器啟用了 Global Privacy Control，則不產生編號，只計次數。</p>
+  <h2>累計次數</h2>
+  <p>以匿名數字統計對話、推薦、進入畫的世界、按下購買連結等次數。累計數會保留，每日數字 40 天後消失。</p>
+  <h2>留在您瀏覽器中的內容</h2>
+  <ul><li>localStorage（一直保留）：所選語言、已關閉或已送出感想卡片的作品標記、使用通關語時的通關語</li><li>sessionStorage（關閉分頁即消失）：上述編號、此分頁顯示過卡片的作品、看過門的標記、上一次的推薦</li></ul>
+  <h2>外部服務</h2>
+  <ul><li>Cloudflare：本站的託管方。用 Cloudflare Web Analytics 查看瀏覽量，不使用 Cookie</li><li>Claude API（Anthropic）：為了產生接待和感想卡片的回覆，會傳送您寫的文字</li><li>Google Fonts：載入字體</li></ul>
+  <h2>不保留的內容</h2>
+  <ul><li>在接待對話中寫的文字，以及在感想卡片上寫了但沒有送出的文字。為產生回覆會傳給 Claude API，但本站不保存</li><li>IP 位址、電子郵件地址、瀏覽器類型（User-Agent）、位置。IP 位址僅在記憶體中用於短時間的次數限制，不會寫下來</li></ul>
+  <p class="back"><a href="/">← 返回接待頁</a></p>
+</section>
+<section lang="ko" data-lang="ko">
+  <h1>기록에 대해</h1>
+  <p>‘그림과 만나다’(SHEER Gallery)가 무엇을 남기는지 적었어요. 작가가 어떤 그림이 어떻게 전해졌는지 알기 위한 것입니다.</p>
+  <h2>작가에게 전해지는 것</h2>
+  <p>감상 카드에서 ‘작가에게 전하기’를 누른 글과 반응입니다. 누르기 전에는 저장하지 않아요. 작가가 지울 때까지 남습니다. 이름이나 연락처는 쓰지 마세요.</p>
+  <h2>180일 동안 남는 것</h2>
+  <ul><li>누른 선택지, 안내자의 질문(준비된 질문 중 어느 것에 가까웠는지), 추천한 작품</li><li>‘다른 그림으로’, 그림의 세계나 작품 페이지를 연 것, 구매 링크를 누른 것, 사용 언어</li><li>자유롭게 쓴 적이 있는지(유무만)</li></ul>
+  <p>이것들은 탭마다의 임의 번호로 이어집니다. 탭을 닫으면 다음에는 다른 번호입니다. 브라우저의 Global Privacy Control이 켜져 있으면 번호를 만들지 않고 횟수만 셉니다.</p>
+  <h2>누적 횟수</h2>
+  <p>대화, 추천, 그림의 세계에 들어간 횟수, 구매 링크를 누른 횟수 등을 누구의 것인지 모르는 숫자로 셉니다. 누적은 남고, 날짜별 숫자는 40일 후 사라집니다.</p>
+  <h2>브라우저에 남는 것</h2>
+  <ul><li>localStorage(계속 남음): 고른 언어, 감상 카드를 닫았거나 보낸 작품의 표시, 암호를 쓸 때는 그 암호</li><li>sessionStorage(탭을 닫으면 사라짐): 위의 번호, 이 탭에서 카드를 보여 준 작품, 문을 본 표시, 직전의 추천</li></ul>
+  <h2>외부 서비스</h2>
+  <ul><li>Cloudflare: 이 사이트를 두는 곳입니다. 페이지 조회 수를 Cloudflare Web Analytics로 봅니다. 쿠키는 쓰지 않아요</li><li>Claude API(Anthropic): 안내와 감상 카드의 답장을 만들기 위해 쓴 글을 전달합니다</li><li>Google Fonts: 글꼴을 불러옵니다</li></ul>
+  <h2>남기지 않는 것</h2>
+  <ul><li>안내 대화에서 쓴 글, 감상 카드에 썼지만 보내지 않은 글. 답장을 만들기 위해 Claude API에 전달하지만 이 사이트에는 저장하지 않아요</li><li>IP 주소, 이메일 주소, 브라우저 종류(User-Agent), 위치. IP 주소는 짧은 시간의 횟수 제한을 위해 메모리에서 셀 뿐, 기록하지 않습니다</li></ul>
+  <p class="back"><a href="/">← 안내 화면으로 돌아가기</a></p>
+</section>
+<section lang="fr" data-lang="fr">
+  <h1>À propos des données</h1>
+  <p>Voici ce que Rencontrer le tableau (SHEER Gallery) conserve, pour que l'artiste sache comment ses tableaux touchent les gens.</p>
+  <h2>Ce qui parvient à l'artiste</h2>
+  <p>Les mots et la réaction envoyés avec « Envoyer à l'artiste » sur la carte d'impressions. Rien n'est enregistré avant d'appuyer, et cela reste jusqu'à ce que l'artiste le supprime. N'indiquez ni votre nom ni vos coordonnées.</p>
+  <h2>Conservé 180 jours</h2>
+  <ul><li>Les choix pressés, la question posée par le guide (la plus proche des questions préparées), les tableaux proposés</li><li>« Un autre », l'ouverture du monde du tableau ou de sa page, le lien d'achat, votre langue</li><li>Le fait d'avoir écrit librement (oui ou non seulement)</li></ul>
+  <p>Ces éléments sont reliés par un numéro aléatoire propre à chaque onglet. Un nouvel onglet reçoit un nouveau numéro. Si votre navigateur envoie Global Privacy Control, aucun numéro n'est créé et seuls les nombres sont comptés.</p>
+  <h2>Totaux</h2>
+  <p>Des nombres anonymes : conversations, propositions, entrées dans le monde d'un tableau, clics sur le lien d'achat. Les totaux restent ; les chiffres quotidiens disparaissent après 40 jours.</p>
+  <h2>Ce qui reste dans votre navigateur</h2>
+  <ul><li>localStorage (reste) : votre langue, une marque pour les tableaux dont vous avez fermé ou envoyé la carte, le mot de passe s'il y en a un</li><li>sessionStorage (disparaît à la fermeture de l'onglet) : le numéro ci-dessus, les cartes déjà montrées, le passage de la porte, la dernière proposition</li></ul>
+  <h2>Services extérieurs</h2>
+  <ul><li>Cloudflare héberge ce site. Les pages vues sont mesurées avec Cloudflare Web Analytics, sans cookie</li><li>L'API Claude (Anthropic) reçoit ce que vous écrivez, pour rédiger les réponses de l'accueil et de la carte</li><li>Google Fonts fournit les polices</li></ul>
+  <h2>Non conservé</h2>
+  <ul><li>Ce que vous écrivez dans la conversation d'accueil, et ce que vous écrivez sur la carte sans l'envoyer. Cela passe par l'API Claude pour la réponse, mais ce site ne l'enregistre pas</li><li>Adresse IP, adresse e-mail, type de navigateur (User-Agent), position. L'adresse IP n'est comptée qu'en mémoire pour limiter le débit à court terme, et n'est jamais écrite</li></ul>
+  <p class="back"><a href="/">← Retour à l'accueil</a></p>
+</section>
+<section lang="de" data-lang="de">
+  <h1>Was gespeichert wird</h1>
+  <p>Hier steht, was „Dem Bild begegnen“ (SHEER Gallery) aufbewahrt, damit die Künstlerin erfährt, wie ihre Bilder ankommen.</p>
+  <h2>Was die Künstlerin erreicht</h2>
+  <p>Worte und Reaktion, die du auf der Eindruckskarte mit „An die Künstlerin senden“ abschickst. Vorher wird nichts gespeichert; es bleibt, bis die Künstlerin es löscht. Bitte schreibe weder Namen noch Kontaktdaten.</p>
+  <h2>180 Tage aufbewahrt</h2>
+  <ul><li>Gedrückte Auswahl, die Frage der Begleiterin (welcher vorbereiteten Frage sie am nächsten kam), vorgeschlagene Bilder</li><li>„Ein anderes“, das Öffnen der Bildwelt oder Bildseite, der Kauflink, deine Sprache</li><li>Ob du frei geschrieben hast (nur ja oder nein)</li></ul>
+  <p>Das wird über eine zufällige Nummer je Browser-Tab verbunden. Ein neuer Tab bekommt eine neue Nummer. Sendet dein Browser Global Privacy Control, entsteht keine Nummer und es werden nur Anzahlen gezählt.</p>
+  <h2>Gesamtzahlen</h2>
+  <p>Anonyme Zahlen: Gespräche, Vorschläge, Besuche der Bildwelt, Klicks auf den Kauflink. Die Gesamtzahlen bleiben, die Tageszahlen verschwinden nach 40 Tagen.</p>
+  <h2>Was in deinem Browser bleibt</h2>
+  <ul><li>localStorage (bleibt): deine Sprache, eine Markierung für Bilder, deren Karte du geschlossen oder gesendet hast, ein Passwort, falls verwendet</li><li>sessionStorage (verschwindet mit dem Tab): die Nummer oben, in diesem Tab gezeigte Karten, dass du die Tür gesehen hast, der letzte Vorschlag</li></ul>
+  <h2>Externe Dienste</h2>
+  <ul><li>Cloudflare hostet diese Seite. Seitenaufrufe misst Cloudflare Web Analytics, ohne Cookies</li><li>Die Claude API (Anthropic) erhält, was du schreibst, um die Antworten am Empfang und auf der Karte zu verfassen</li><li>Google Fonts liefert die Schriften</li></ul>
+  <h2>Nicht aufbewahrt</h2>
+  <ul><li>Was du im Empfangsgespräch schreibst und was du auf der Karte schreibst, aber nicht sendest. Es geht für die Antwort an die Claude API, diese Seite speichert es nicht</li><li>IP-Adresse, E-Mail-Adresse, Browsertyp (User-Agent), Standort. Die IP-Adresse wird nur im Arbeitsspeicher für kurzfristige Limits gezählt und nie niedergeschrieben</li></ul>
+  <p class="back"><a href="/">← Zurück zum Empfang</a></p>
+</section>
+<section lang="es" data-lang="es">
+  <h1>Sobre lo que se registra</h1>
+  <p>Esto es lo que guarda Conocer el cuadro (SHEER Gallery), para que la artista sepa cómo llegan sus cuadros a la gente.</p>
+  <h2>Lo que llega a la artista</h2>
+  <p>Las palabras y la reacción enviadas con «Enviar a la artista» en la tarjeta de impresiones. No se guarda nada hasta que pulses, y se queda hasta que la artista lo borre. No escribas tu nombre ni tus datos de contacto.</p>
+  <h2>Se guarda 180 días</h2>
+  <ul><li>Las opciones pulsadas, la pregunta de la guía (a cuál de las preparadas se parecía más), los cuadros sugeridos</li><li>«Otro», abrir el mundo del cuadro o su página, pulsar el enlace de compra, tu idioma</li><li>Si escribiste libremente (solo sí o no)</li></ul>
+  <p>Todo esto se enlaza con un número aleatorio por pestaña. Una pestaña nueva recibe otro número. Si tu navegador envía Global Privacy Control, no se crea número y solo se cuentan las veces.</p>
+  <h2>Totales</h2>
+  <p>Números anónimos: conversaciones, sugerencias, entradas al mundo de un cuadro, pulsaciones del enlace de compra. Los totales permanecen; los números diarios desaparecen a los 40 días.</p>
+  <h2>Lo que queda en tu navegador</h2>
+  <ul><li>localStorage (permanece): tu idioma, una marca de los cuadros cuya tarjeta cerraste o enviaste, la contraseña si se usa</li><li>sessionStorage (desaparece al cerrar la pestaña): el número anterior, las tarjetas ya mostradas, haber visto la puerta, la última sugerencia</li></ul>
+  <h2>Servicios externos</h2>
+  <ul><li>Cloudflare aloja este sitio. Las visitas se miden con Cloudflare Web Analytics, sin cookies</li><li>La API de Claude (Anthropic) recibe lo que escribes para redactar las respuestas de la recepción y de la tarjeta</li><li>Google Fonts proporciona las tipografías</li></ul>
+  <h2>No se guarda</h2>
+  <ul><li>Lo que escribes en la conversación de recepción y lo que escribes en la tarjeta sin enviarlo. Pasa por la API de Claude para responder, pero este sitio no lo guarda</li><li>Dirección IP, correo electrónico, tipo de navegador (User-Agent), ubicación. La IP solo se cuenta en memoria para límites de corta duración y nunca se anota</li></ul>
+  <p class="back"><a href="/">← Volver a la recepción</a></p>
+</section>
+<section lang="it" data-lang="it">
+  <h1>Che cosa viene registrato</h1>
+  <p>Ecco che cosa conserva Incontrare il quadro (SHEER Gallery), perché l'artista sappia come i suoi quadri arrivano alle persone.</p>
+  <h2>Che cosa arriva all'artista</h2>
+  <p>Le parole e la reazione inviate con «Invia all'artista» sulla scheda delle impressioni. Nulla viene salvato prima di premere, e resta finché l'artista non lo cancella. Non scrivere il tuo nome né i tuoi contatti.</p>
+  <h2>Conservato per 180 giorni</h2>
+  <ul><li>Le scelte premute, la domanda della guida (a quale di quelle preparate somigliava di più), i quadri proposti</li><li>«Un altro», l'apertura del mondo del quadro o della sua pagina, il link di acquisto, la tua lingua</li><li>Se hai scritto liberamente (solo sì o no)</li></ul>
+  <p>Questi dati sono collegati da un numero casuale per ogni scheda. Una nuova scheda riceve un nuovo numero. Se il browser invia Global Privacy Control, nessun numero viene creato e si contano solo le volte.</p>
+  <h2>Totali</h2>
+  <p>Numeri anonimi: conversazioni, proposte, ingressi nel mondo di un quadro, clic sul link di acquisto. I totali restano; i numeri giornalieri spariscono dopo 40 giorni.</p>
+  <h2>Che cosa resta nel tuo browser</h2>
+  <ul><li>localStorage (resta): la tua lingua, un segno per i quadri di cui hai chiuso o inviato la scheda, la parola d'ordine se usata</li><li>sessionStorage (sparisce chiudendo la scheda): il numero qui sopra, le schede già mostrate, l'aver visto la porta, l'ultima proposta</li></ul>
+  <h2>Servizi esterni</h2>
+  <ul><li>Cloudflare ospita questo sito. Le visite sono misurate con Cloudflare Web Analytics, senza cookie</li><li>L'API Claude (Anthropic) riceve ciò che scrivi per comporre le risposte dell'accoglienza e della scheda</li><li>Google Fonts fornisce i caratteri</li></ul>
+  <h2>Non conservato</h2>
+  <ul><li>Ciò che scrivi nella conversazione di accoglienza e ciò che scrivi sulla scheda senza inviarlo. Passa dall'API Claude per la risposta, ma questo sito non lo salva</li><li>Indirizzo IP, e-mail, tipo di browser (User-Agent), posizione. L'IP è contato solo in memoria per limiti a breve termine e non viene mai scritto</li></ul>
+  <p class="back"><a href="/">← Torna all'accoglienza</a></p>
+</section>
+<section lang="pt" data-lang="pt">
+  <h1>Sobre o que é registado</h1>
+  <p>Isto é o que Conhecer o quadro (SHEER Gallery) guarda, para a artista saber como os seus quadros chegam às pessoas.</p>
+  <h2>O que chega à artista</h2>
+  <p>As palavras e a reação enviadas com «Enviar à artista» no cartão de impressões. Nada é guardado antes de premir, e fica até a artista apagar. Não escreva o seu nome nem contactos.</p>
+  <h2>Guardado durante 180 dias</h2>
+  <ul><li>As opções premidas, a pergunta da guia (de qual das preparadas se aproximava), os quadros sugeridos</li><li>«Outro», abrir o mundo do quadro ou a sua página, premir a ligação de compra, o seu idioma</li><li>Se escreveu livremente (apenas sim ou não)</li></ul>
+  <p>Isto é ligado por um número aleatório por separador. Um novo separador recebe outro número. Se o navegador enviar Global Privacy Control, não é criado número e só se contam as vezes.</p>
+  <h2>Totais</h2>
+  <p>Números anónimos: conversas, sugestões, entradas no mundo de um quadro, cliques na ligação de compra. Os totais ficam; os números diários desaparecem ao fim de 40 dias.</p>
+  <h2>O que fica no seu navegador</h2>
+  <ul><li>localStorage (fica): o seu idioma, uma marca dos quadros cujo cartão fechou ou enviou, a palavra-passe se for usada</li><li>sessionStorage (desaparece ao fechar o separador): o número acima, os cartões já mostrados, ter visto a porta, a última sugestão</li></ul>
+  <h2>Serviços externos</h2>
+  <ul><li>A Cloudflare aloja este site. As visitas são medidas com Cloudflare Web Analytics, sem cookies</li><li>A API Claude (Anthropic) recebe o que escreve, para redigir as respostas da receção e do cartão</li><li>O Google Fonts fornece os tipos de letra</li></ul>
+  <h2>Não guardado</h2>
+  <ul><li>O que escreve na conversa da receção e o que escreve no cartão sem enviar. Passa pela API Claude para a resposta, mas este site não guarda</li><li>Endereço IP, e-mail, tipo de navegador (User-Agent), localização. O IP é apenas contado em memória para limites de curta duração e nunca é escrito</li></ul>
+  <p class="back"><a href="/">← Voltar à receção</a></p>
+</section>
+<script>
+(function(){
+  var all=[].slice.call(document.querySelectorAll('section[data-lang]'));
+  function show(l){ var ok=all.some(function(s){return s.dataset.lang===l}); all.forEach(function(s){ s.hidden=s.dataset.lang!==(ok?l:'en'); }); document.documentElement.lang=ok?l:'en'; }
+  var saved=null; try{ saved=localStorage.getItem('lang'); }catch(e){}
+  var nav=(navigator.language||'en').toLowerCase(), l=saved||(/^zh-(tw|hk|mo|hant)/.test(nav)?'zh-Hant':/^zh/.test(nav)?'zh-Hans':nav.split('-')[0]);
+  show(l);
+  document.querySelector('.langs').addEventListener('click',function(e){ var a=e.target.closest('[data-show]'); if(!a)return; e.preventDefault(); show(a.dataset.show); });
+})();
+</script>
 </body>
 </html>
