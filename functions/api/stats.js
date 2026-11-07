@@ -1,6 +1,7 @@
 // 計測の見る口（E-14）：GET /api/stats?key=<STATS_KEY>。作家だけが見る。累計と直近 30 日（日本時間）の数を返す
 // STATS_KEY（Pages の Secret）が無い・一致しないときは 404。数のほかには何も持っていない
 import { checkStatsKey, summarize, jstDate } from '../_lib/stats.js';
+import { ipKey } from '../_lib/admin-auth.js';
 
 const RATE_LIMIT = 30;
 const RATE_WINDOW = 60_000;
@@ -31,7 +32,7 @@ async function listAll(kv, prefix) {
 }
 
 export async function onRequestGet({ request, env }) {
-  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const ip = ipKey(request.headers.get('CF-Connecting-IP'));
   if (rateLimited(ip)) return notFound();
   const given = new URL(request.url).searchParams.get('key');
   if (!checkStatsKey(env.STATS_KEY, given) || !env.STATS) return notFound();

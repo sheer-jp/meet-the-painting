@@ -80,7 +80,7 @@ export function normalizeJourney(body, catalog) {
     if (!def.detail.includes(body.via)) return null;
     detail = body.via;
   } else if (body.via != null) return null;
-  const lang = typeof body.lang === 'string' && body.lang in LANG_NAMES ? body.lang : null;
+  const lang = typeof body.lang === 'string' && Object.prototype.hasOwnProperty.call(LANG_NAMES, body.lang) ? body.lang : null;
   return { sid: body.sid, ev: body.ev, work_id, detail, lang };
 }
 
@@ -158,3 +158,20 @@ export async function dbReady(env, now = Date.now()) {
   return ok;
 }
 export function resetDbReadyMemo() { readyMemo = null; }
+
+// ───── 1 日の上限（日本時間で数える）。表 daily_counts に数を持つ（migrations/0002）。KV は書き込みの上限が低いので使わない ─────
+/**
+ * 1 回分を数え、上限の内なら true。数えられないとき（表が無いなど）は false（費用と書き込みを増やさない側に倒す）
+ * @param {any} db @param {string} name @param {number} cap @param {number} [now]
+ */
+export async function takeDaily(db, name, cap, now = Date.now()) {
+  try {
+    const day = new Date(now + 9 * 3600_000).toISOString().slice(0, 10);
+    const row = await db.prepare('INSERT INTO daily_counts (day, name, n) VALUES (?, ?, 1) ON CONFLICT (day, name) DO UPDATE SET n = n + 1 RETURNING n').bind(day, name).first();
+    if (Math.random() < 0.002) await db.prepare('DELETE FROM daily_counts WHERE day < ?').bind(new Date(now - 7 * 86400_000 + 9 * 3600_000).toISOString().slice(0, 10)).run();
+    return (row?.n ?? Infinity) <= cap;
+  } catch (e) {
+    console.error('1 日の数を数えられない', String(e));
+    return false;
+  }
+}

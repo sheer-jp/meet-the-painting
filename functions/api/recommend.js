@@ -5,6 +5,7 @@ import { buildBody, validateRequest, FALLBACK_BETA, supportsFallbacks } from '..
 import { relayEvents, sse } from '../_lib/relay.js';
 import { fetchStatuses, withoutSold } from '../_lib/works-status.js';
 import { recordAsked } from '../_lib/events.js';
+import { ipKey, bodyTooLarge } from '../_lib/admin-auth.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const CATALOG_TTL = 600_000;      // カタログを isolate の中に持つ時間（ミリ秒）
@@ -113,8 +114,9 @@ async function handle(req, env, ctx) {
   const cors = corsHeaders(req, origin);
   if (!origin) return json(403, { error: 'bad_request' }, cors);
 
-  const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+  const ip = ipKey(req.headers.get('CF-Connecting-IP'));
   if (rateLimited(ip)) return json(429, { error: 'rate_limited' }, { ...cors, 'Retry-After': '60' });
+  if (bodyTooLarge(req, MAX_BODY)) return json(400, { error: 'bad_request' }, cors);
   // 合言葉は回数制限のあとで比べる（総当たりも回数制限に掛かるように）
   if (!checkPassphrase(env.PASSPHRASE, req.headers.get('X-Passphrase'))) return json(403, { error: 'passphrase' }, cors);
 

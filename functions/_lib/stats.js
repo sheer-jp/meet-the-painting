@@ -10,6 +10,7 @@ export const EVENTS = {
   concierge_skip: { needId: false },
   enter: { needId: true, via: ['concierge', 'page', 'gallery'] },
   gallery_pick: { needId: true },
+  buy_click: { needId: true },
 };
 
 const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;

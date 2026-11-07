@@ -2,11 +2,16 @@
 // 匿名 id（sid）があれば、構造化した出来事を D1 にも書く（docs/ADMIN.md 2 節）。KV の数と D1 の出来事は別々に失敗してよい
 // IP・UA・会話の文は保存しない（IP は isolate の中の回数制限にだけ使い、KV にも D1 にも書かない）。Cookie も使わない
 import { normalizeEvent, statKeys, jstDate, DAY_TTL } from '../_lib/stats.js';
-import { normalizeJourney, insertEvent, maybePurge } from '../_lib/events.js';
+import { normalizeJourney, insertEvent, maybePurge, takeDaily } from '../_lib/events.js';
 import { readCatalog } from '../_lib/catalog.js';
+import { makeRateLimit, ipKey, bodyTooLarge } from '../_lib/admin-auth.js';
 
 const RATE_LIMIT = 60;            // IP ごと 1 分あたりの回数
 const RATE_WINDOW = 60_000;
+// D1 に書く出来事は別に絞る（無料枠は 1 日 10 万行の書き込み。出来事 1 件は索引込みで約 4 行、数えるのに 1 行）
+const DB_RATE_LIMIT = 20;         // IP ごと 1 分あたり
+export const DB_DAILY_CAP = 15_000;   // 全体で 1 日あたり。超えたら数だけ（KV）にして、今日の出来事は残さない
+const dbLimited = makeRateLimit(DB_RATE_LIMIT);
 const MAX_BODY = 512;             // 本文の上限（バイト）
 const CATALOG_TTL = 600_000;
 const DEV_ORIGINS = ['http://localhost:5173', 'https://localhost:5173'];
@@ -74,8 +79,9 @@ export async function onRequestPost(ctx) {
   const origin = allowedOrigin(req);
   const cors = corsHeaders(req, origin);
   if (!origin) return empty(403, cors);
-  const ip = req.headers.get('CF-Connecting-IP') || 'unknown';
+  const ip = ipKey(req.headers.get('CF-Connecting-IP'));
   if (rateLimited(ip)) return empty(429, { ...cors, 'Retry-After': '60' });
+  if (bodyTooLarge(req, MAX_BODY)) return empty(400, cors);
 
   let body;
   try {
@@ -99,9 +105,10 @@ export async function onRequestPost(ctx) {
     await Promise.allSettled([bump(env.STATS, dKey, DAY_TTL), bump(env.STATS, tKey, 0)]);
   })().catch(() => {});
   const logged = (async () => {
-    if (!env.DB || !journeyName) return;
+    if (!env.DB || !journeyName || dbLimited(ip)) return;
     const j = normalizeJourney(body, await readCatalog(req, env));
     if (!j) return;
+    if (!await takeDaily(env.DB, 'stat_events', DB_DAILY_CAP)) return;
     await insertEvent(env.DB, j);
     await maybePurge(env.DB);
   })().catch((e) => console.error('出来事を保存できない', String(e)));

@@ -13,7 +13,7 @@ const clean = (/** @type {string} */ s) => s.replace(/[\u0000-\u0008\u000B\u000C
 /** /api/followup の本文を確かめる。だめなら null @param {any} b */
 export function validateChat(b) {
   if (!b || typeof b !== 'object') return null;
-  if (typeof b.lang !== 'string' || !(b.lang in LANG_NAMES)) return null;
+  if (typeof b.lang !== 'string' || !Object.prototype.hasOwnProperty.call(LANG_NAMES, b.lang)) return null;
   if (typeof b.work !== 'string' || !ID_RE.test(b.work)) return null;
   if (b.reaction != null && !REACTIONS.includes(b.reaction)) return null;
   if (!Array.isArray(b.texts) || !b.texts.length || b.texts.length > LIMITS.turns) return null;
@@ -31,7 +31,7 @@ export function validateChat(b) {
 export function validateSend(b) {
   if (!b || typeof b !== 'object') return null;
   if (typeof b.id !== 'string' || !FID_RE.test(b.id)) return null;
-  if (typeof b.lang !== 'string' || !(b.lang in LANG_NAMES)) return null;
+  if (typeof b.lang !== 'string' || !Object.prototype.hasOwnProperty.call(LANG_NAMES, b.lang)) return null;
   if (typeof b.work !== 'string' || !ID_RE.test(b.work)) return null;
   if (b.reaction != null && !REACTIONS.includes(b.reaction)) return null;
   if (!PLACES.includes(b.place)) return null;
@@ -76,7 +76,8 @@ ${workText(work)}
 /** @param {{ reaction: string|null, texts: string[] }} chat */
 export function followupUser(chat) {
   const r = chat.reaction ? `（訪れた人が押した反応：${/** @type {any} */ (REACTION_JA)[chat.reaction]}）\n` : '';
-  const words = chat.texts.map((t) => `<visitor_words>\n${t.replace(/<\/?visitor_words>/gi, '')}\n</visitor_words>`).join('\n');
+  // 中の < と > を全角にして、印を閉じられないように（語の除去だけだと分割して作れる）
+  const words = chat.texts.map((t) => `<visitor_words>\n${t.replace(/</g, '＜').replace(/>/g, '＞')}\n</visitor_words>`).join('\n');
   const last = chat.texts.length >= LIMITS.turns ? '\n\nこれが最後の 1 往復です。問いかけないで、受け止めるだけで終えてください。' : '';
   return `${r}${words}${last}`;
 }
@@ -95,10 +96,14 @@ export function followupBody(work, chat, model) {
 // 応答（Messages API の JSON）から文を取り出す。拒否、空、長すぎ、URL や金額が混ざったものは null（定型文に落とす）
 /** @param {any} data */
 export function cleanReply(data) {
-  if (!data || data.stop_reason === 'refusal' || !Array.isArray(data.content)) return null;
+  // max_tokens は途中で切れた文（定型文に落とす）
+  if (!data || data.stop_reason === 'refusal' || data.stop_reason === 'max_tokens' || !Array.isArray(data.content)) return null;
   const text = clean(data.content.filter((/** @type {any} */ c) => c?.type === 'text' && typeof c.text === 'string').map((/** @type {any} */ c) => c.text).join(''));
   if (!text || text.length > LIMITS.replyChars) return null;
-  if (/https?:|www\.|[¥￥$€£]\s?\d|\d\s?(円|ドル|万円)/i.test(text)) return null;
+  // URL と金額。全角の数字、「千円」「¥ 1,000」「USD 100」「example.com」のような形も見る
+  const flat = text.normalize('NFKC');
+  if (/https?:|www\.|\b[a-z0-9-]+\.(com|net|org|jp|io|co)\b/i.test(flat)) return null;
+  if (/[¥$€£]\s?\d|\d[\d,.]*\s?(円|万|千|億|ドル|ユーロ|ポンド|元|(yen|dollars?|euros?|usd|jpy)\b)|\b(usd|jpy|eur)\s?\d|[一二三四五六七八九十百千万億]+\s?(円|ドル)/i.test(flat)) return null;
   if (/visitor_words/i.test(text)) return null;
   return text;
 }

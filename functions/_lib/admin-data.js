@@ -39,7 +39,10 @@ export function pathOf(list) {
   const q = first('cg_question');
   const question = q?.detail || (has('cg_rule') ? RULES_LABEL : NO_QUESTION);
   const rec = first('concierge_recommend');
-  const outcome = !rec ? 'stop' : has('buy_click') ? 'buy' : has('enter') ? 'enter' : has('work_view') ? 'view' : has('concierge_other') ? 'other' : 'stop';
+  // どこまで進んだかは、すすめた作品について見る（すすめたあとに別の絵のページへ行っただけなら数えない）。「別のにする」で替わった絵はどれも「すすめた作品」
+  const recommended = new Set(list.filter((e) => e.ev === 'concierge_recommend').map((e) => e.work_id));
+  const onRec = (/** @type {string} */ ev) => list.some((e) => e.ev === ev && recommended.has(e.work_id));
+  const outcome = !rec ? 'stop' : onRec('buy_click') ? 'buy' : onRec('enter') ? 'enter' : onRec('work_view') ? 'view' : has('concierge_other') ? 'other' : 'stop';
   return { opener, question, work: rec?.work_id || null, outcome };
 }
 

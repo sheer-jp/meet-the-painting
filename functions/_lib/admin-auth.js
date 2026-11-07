@@ -45,7 +45,7 @@ let jwksMemo = null;
 export async function fetchGoogleKeys(force = false, now = Date.now(), doFetch = fetch) {
   if (jwksMemo && now - jwksMemo.at < (force ? 60_000 : jwksMemo.ttl)) return jwksMemo.keys;
   const res = await doFetch(JWKS_URL);
-  if (!res.ok) throw new Error(`jwks ${res.status}`);
+  if (!res.ok) { console.error('Google の公開鍵を取得できない', res.status); throw new Error(`jwks ${res.status}`); }
   const data = await res.json();
   const m = /max-age=(\d+)/.exec(res.headers.get('cache-control') || '');
   jwksMemo = { at: now, ttl: Math.min(m ? Number(m[1]) * 1000 : 3600_000, 6 * 3600_000), keys: Array.isArray(data?.keys) ? data.keys : [] };
@@ -152,4 +152,23 @@ export function makeRateLimit(limit, windowMs = 60_000) {
     e.count++;
     return e.count > limit;
   };
+}
+
+// 回数制限の鍵。IP は保存しない（isolate のメモリにだけ）。IPv6 は 1 回線に /64 が割り当たるので、前半の 64 ビットで数える
+/** @param {string|null|undefined} ip */
+export function ipKey(ip) {
+  const s = String(ip ?? '').trim().toLowerCase();
+  if (!s) return 'unknown';
+  if (!s.includes(':')) return s;
+  const [head, tail = ''] = s.split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const full = s.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return full.slice(0, 4).map((x) => x.replace(/^0+(?=.)/, '')).join(':') + '::/64';
+}
+// 本文を読む前に Content-Length で大きすぎる要求を断る（無い・嘘のときのために、読んだあとの長さの検査も残す）
+/** @param {Request} req @param {number} max */
+export function bodyTooLarge(req, max) {
+  const n = Number(req.headers.get('Content-Length'));
+  return Number.isFinite(n) && n > max;
 }

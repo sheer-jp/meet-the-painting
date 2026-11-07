@@ -49,7 +49,7 @@ export function catalogText(catalog) {
     if (Array.isArray(w.fits?.ja) && w.fits.ja.length) lines.push(`- こんな人・こんなときに：${w.fits.ja.join('。')}。`);
     lines.push(`- 作家のメッセージ（ja）：${(w.messages?.ja || []).join(' ')}`);
     if (differs(w.messages?.en, w.messages?.ja)) lines.push(`- 作家のメッセージ（en）：${w.messages.en.join(' ')}`);
-    if (w.story?.en) lines.push(`- 小さな物語（en、作家の下書き）：${w.story.en.replace(/\n+/g, ' ')}`);
+    if (w.story?.en) lines.push(`- 小さな物語（en、作家が確認したもの）：${w.story.en.replace(/\n+/g, ' ')}`);
   }
   return lines.join('\n');
 }
@@ -239,7 +239,7 @@ export const LIMITS = { messages: 10, chars: 600, assistantChars: 2000 };
  */
 export function validateRequest(body, turns = [2, 4]) {
   if (!body || typeof body !== 'object') return 'body';
-  if (typeof body.lang !== 'string' || !(body.lang in LANG_NAMES)) return 'lang';
+  if (typeof body.lang !== 'string' || !Object.prototype.hasOwnProperty.call(LANG_NAMES, body.lang)) return 'lang';
   if (body.seed != null && body.seed !== '' && !(typeof body.seed === 'string' && /^[A-Za-z0-9_-]{1,32}$/.test(body.seed))) return 'seed';   // 会話ごとの問いの選び方の種
   const ms = body.messages;
   if (!Array.isArray(ms) || ms.length === 0 || ms.length > LIMITS.messages) return 'messages';

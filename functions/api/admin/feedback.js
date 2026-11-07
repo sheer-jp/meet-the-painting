@@ -23,7 +23,14 @@ export async function onRequestGet({ request: req, env }) {
     const r = await env.DB.prepare(`SELECT id, created_at, work_id, reaction, body, lang, place, sid FROM feedback WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT ?`).bind(...args, PAGE + 1).all();
     const list = r.results || [];
     const items = list.slice(0, PAGE);
-    return adminJson(200, { db: true, items, next: list.length > PAGE ? items[items.length - 1].created_at : null });
+    // 同じミリ秒の感想を飛ばさないよう、ページの終わりと同じ時刻のものは次のページに回さず、この回で全部返す
+    let next = list.length > PAGE ? items[items.length - 1].created_at : null;
+    if (next != null && list[PAGE].created_at === next) {
+      const same = await env.DB.prepare(`SELECT id, created_at, work_id, reaction, body, lang, place, sid FROM feedback WHERE ${where.join(' AND ')} AND created_at = ?`).bind(...args, next).all();
+      const seen = new Set(items.map((x) => x.id));
+      for (const x of same.results || []) if (!seen.has(x.id)) items.push(x);
+    }
+    return adminJson(200, { db: true, items, next });
   } catch (e) {
     console.error('感想を読めない', String(e));
     return adminJson(503, { error: 'unavailable' });
