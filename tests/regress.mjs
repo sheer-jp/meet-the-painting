@@ -134,13 +134,14 @@ export async function runRegress({ base, kinds = ['chromium', 'webkit'], shots =
       check(await pause.isHidden(), T('#5 T0 では一時停止を出さない'));
       const t0 = Date.now();
       await page.locator('.hud .skip').click();
-      // T0 で押して、語りの最初の文がすぐ出る
-      await page.waitForFunction(() => { const el = document.querySelector('.float-text'); return el && el.textContent && getComputedStyle(el).opacity !== '0'; }, null, { timeout: 8000 });
-      check(Date.now() - t0 < 4500, T(`#6 T0 の「次へ」で語りへ（${Date.now() - t0}ms）`));
+      // T0 で押して、語りの場面へ（押さなければ入りだけで 6 秒。ソフトウェア描画で遅いので文の見え方でなく場面で見る）
+      await pause.waitFor({ state: 'visible', timeout: 8000 });
+      check(Date.now() - t0 < 4000, T(`#6 T0 の「次へ」で語りへ（${Date.now() - t0}ms）`));
       check(await pause.isVisible(), T('#5 語りの間は一時停止が見える'));
+      await page.waitForFunction(() => { const el = document.querySelector('.float-text'); return el && el.textContent && getComputedStyle(el).opacity !== '0'; }, null, { timeout: 8000 });
       await pause.click();
-      await page.waitForTimeout(400);
-      check(await page.locator('.hud .paused').evaluate((el) => getComputedStyle(el).opacity === '1'), T('#5 一時停止が効く'));
+      const paused = await page.waitForFunction(() => getComputedStyle(document.querySelector('.hud .paused')).opacity === '1', null, { timeout: 4000 }).then(() => true, () => false);
+      check(paused, T('#5 一時停止が効く'));
       const overlap = await page.evaluate(() => { const a = document.querySelector('.hud .paused').getBoundingClientRect(), b = document.querySelector('.float-text').getBoundingClientRect(); return !(a.bottom <= b.top || a.top >= b.bottom); });
       check(!overlap, T('#5 「一時停止」の文字が文に隠れない'));
       await shot(page, `${kind}-05-paused`);
