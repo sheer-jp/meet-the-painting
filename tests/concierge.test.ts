@@ -144,6 +144,18 @@ describe('3 段の状態機械（docs/ENTRANCE.md 3.5：読ませる → 考え�
 
 describe('受付の最初の画面はボタンだけ（11-06 作家）', () => {
   const html = galleryPage({ works: [{ id: 'harmoney' }], baseUrl: 'https://example.com' });
+  it('扉の入場（ENTRANCE 3.7）：既定で隠し、判定のスクリプトは受付の <main> より前。JS が止まっても CSS だけで消える', () => {
+    expect(html).toContain('.door{display:none}');
+    expect(html).toMatch(/\.door\{display:none\}[\s\S]*@keyframes door-bail\{from,to\{visibility:hidden;/);
+    const door = html.indexOf('<div class="door" id="door" aria-hidden="true">');
+    const script = html.indexOf('<script>(function(){', door);
+    const main = html.indexOf('<main class="cg"');
+    expect(door).toBeGreaterThan(-1);
+    expect(door).toBeLessThan(script);
+    expect(script).toBeLessThan(main);
+    expect(html).toContain('prefers-reduced-motion');
+    expect(html).toContain('sessionStorage');
+  });
   it('入力欄は最初は隠し、3 つの選択肢の下に 4 つ目「自分のことばで書く」', () => {
     expect(html).toMatch(/<form class="cg-form"[^>]*\shidden>/);
     const opts = [...html.matchAll(/<button type="button" class="cg-opt[^"]*" data-opener-index="([^"]+)"/g)].map((m) => m[1]);

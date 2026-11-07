@@ -379,6 +379,89 @@ async function passphraseCase() {
   }
 }
 
+// 扉の入場（docs/ENTRANCE.md 3.7）：最初の 1 回だけ出て消える。飛ばせる。下の受付を押さない。出さない条件。画像が遅いと飛ばす。JS が止まっても CSS だけで消える
+async function doorCase() {
+  const browser = await chromium.launch();
+  const url = `http://localhost:${PORT}/`;
+  const open = async (opts = {}, setup) => { const ctx = await browser.newContext({ locale: 'ja', viewport: { width: 390, height: 844 }, ...opts }); const page = await ctx.newPage(); if (setup) await setup(page); return { ctx, page }; };
+  const gone = (page, timeout) => page.waitForFunction(() => !document.getElementById('door') && !document.documentElement.classList.contains('door-on'), null, { timeout, polling: 50 });
+  try {
+    { // 1 回目は出て、2.5 秒以内に消える。2 回目（再読み込み）は出ない
+      const { ctx, page } = await open();
+      const errors = collectErrors(page);
+      await page.goto(url, { waitUntil: 'commit' });
+      await page.waitForSelector('.door-run', { timeout: 5000 });
+      const t0 = Date.now();
+      check(await page.locator('#door').getAttribute('aria-hidden') === 'true', '扉：aria-hidden');
+      await gone(page, 4000);
+      const took = Date.now() - t0;
+      check(took <= 2500, `扉：${took}ms で終わり、DOM から消える`);
+      check(await page.evaluate(() => document.activeElement === document.body), '扉：フォーカスを奪わない');
+      await page.click('.cg-openers .cg-write', { timeout: 2000 });
+      check(await page.locator('.cg-form input').isVisible(), '扉のあと：受付を操作できる');
+      await page.reload({ waitUntil: 'load' });
+      check(await page.locator('#door').count() === 0, '扉：同じタブの 2 回目は出ない');
+      check(errors.length === 0, `扉：コンソールエラー ${errors.length}${errors.length ? '\n    ' + errors.join('\n    ') : ''}`);
+      await ctx.close();
+    }
+    { // クリックで飛ばす。選択肢の上を押しても、選択肢は押されない
+      const { ctx, page } = await open();
+      await page.goto(url, { waitUntil: 'load' });
+      await page.waitForSelector('.door-run', { timeout: 5000 });
+      const box = await page.locator('.cg-openers button').first().boundingBox();
+      const t0 = Date.now();
+      await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+      await gone(page, 1000);
+      check(Date.now() - t0 < 500, `扉：クリックで飛ばせる（${Date.now() - t0}ms）`);
+      check(await page.locator('.cg-thread .cg-me').count() === 0, '扉：飛ばすクリックが下の選択肢を押さない');
+      await ctx.close();
+    }
+    { // キーで飛ばす
+      const { ctx, page } = await open();
+      await page.goto(url, { waitUntil: 'load' });
+      await page.waitForSelector('.door-run', { timeout: 5000 });
+      await page.keyboard.press('Space');
+      await gone(page, 1000);
+      check(true, '扉：キーで飛ばせる');
+      await ctx.close();
+    }
+    { // reduced-motion では出ない
+      const { ctx, page } = await open({ reducedMotion: 'reduce' });
+      await page.goto(url, { waitUntil: 'load' });
+      check(await page.locator('#door').count() === 0, '扉：reduced-motion では出ない');
+      await ctx.close();
+    }
+    for (const [q, want] of [['?retry=harmoney', false], ['#concierge', false], ['?utm_source=x', true]]) {   // 深いリンクでは出さない。計測のクエリだけなら出す
+      const { ctx, page } = await open();
+      await page.goto(url + q, { waitUntil: 'load' });
+      const on = await page.locator('#door').count() === 1;
+      check(on === want, `扉：${q} で${want ? '出す' : '出さない'}`);
+      await ctx.close();
+    }
+    { // 画像が 800ms で揃わなければ、開かずに受付を出す。待っている間も受付は透けない
+      const { ctx, page } = await open({}, (p) => p.route('**/concierge/door/*', async (r) => { await new Promise((res) => setTimeout(res, 3000)); r.abort().catch(() => {}); }));
+      await page.goto(url, { waitUntil: 'commit' });
+      await page.waitForSelector('#door', { state: 'attached', timeout: 3000 });
+      const bg = await page.locator('#door').evaluate((el) => getComputedStyle(el).backgroundColor);
+      check(!/rgba\(0, 0, 0, 0\)|transparent/.test(bg), `扉：画像を待つ間は不透明（${bg}）`);
+      await gone(page, 2000);
+      check(await page.locator('.cg-title').isVisible(), '扉：画像が遅いときは飛ばして受付を出す');
+      await ctx.close();
+    }
+    { // スクリプトが途中で止まっても、CSS だけで見えなくなり、受付を押せる（タイマーと画像の完了を止めて確かめる）
+      const { ctx, page } = await open({}, (p) => p.addInitScript(() => { const st = window.setTimeout; window.setTimeout = (f, d, ...a) => (d === 800 || d === 3000 ? 0 : st(f, d, ...a)); Image.prototype.decode = () => new Promise(() => {}); }));
+      await page.goto(url, { waitUntil: 'load' });
+      check(await page.locator('#door').count() === 1, '扉：止まったスクリプトの確認（まだ DOM にある）');
+      await page.waitForFunction(() => getComputedStyle(document.getElementById('door')).visibility === 'hidden', null, { timeout: 6000 });
+      await page.click('.cg-openers .cg-write', { timeout: 1000 });
+      check(await page.locator('.cg-form input').isVisible(), '扉：スクリプトが止まっても CSS で消えて受付を押せる');
+      await ctx.close();
+    }
+  } finally {
+    await browser.close();
+  }
+}
+
 try {
   await runCase('story',{ webgl: true, lang: 'ja', query: '?from=qr' });
   await runCase('story-en', { webgl: true, lang: 'en-US' });
@@ -419,6 +502,7 @@ try {
   await entranceCase('pc', { width: 1280, height: 800 });
   await entranceCase('sp', { width: 375, height: 667 });
   await passphraseCase();
+  await doorCase();
 } catch (e) {
   console.error(e); failed++;
 } finally {

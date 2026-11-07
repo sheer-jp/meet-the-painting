@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { LANGS } from './translate.js';
+import { doorStyle, doorBody } from './door.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const t = (obj, lang) => (obj && (obj[lang] || obj.ja || obj.en)) || '';
@@ -204,6 +205,7 @@ export function galleryPage({ works, baseUrl }) {
 ${headOg({ title: SITE_NAME, description: RECEPTION_DESC, image: `${baseUrl}/og/gallery.png`, url: `${baseUrl}/` })}
 ${headIcons('')}
 <meta name="recommend-api" content="${esc(process.env.RECOMMEND_API ?? '/api/recommend')}">
+${doorStyle()}
 <!-- 受付の背景の壁（AUDIT-1 P1-4）。src/ui/page.css の .cg-host::before と同じ画像・同じ境目（640px）にそろえる -->
 <link rel="preload" as="image" href="concierge/wall/wall-tall.webp" type="image/webp" media="(max-width: 639.98px)">
 <link rel="preload" as="image" href="concierge/wall/wall-wide.webp" type="image/webp" media="(min-width: 640px)">
@@ -211,6 +213,7 @@ ${FONTS}
 <link rel="stylesheet" href="src/ui/page.css">
 </head>
 <body class="paper">
+${doorBody()}
 <main class="cg" id="concierge">
   <header class="cg-top">
     <h1 class="cg-title">${jaEn(title.ja, title.en)}<span class="cg-name">${jaEn('絵と出会う', 'Meet the Painting')}</span></h1>
