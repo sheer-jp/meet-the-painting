@@ -1,8 +1,10 @@
 // 気分から絵をすすめる：Claude API の中継（Cloudflare Pages Functions。docs/RECOMMEND.md 8.4、docs/ENTRANCE.md 5.2）
-// サイト本体と同じ origin の /api/recommend。会話はどこにも保存しない。要求の本文や会話をログに出さない
+// サイト本体と同じ origin の /api/recommend。会話の文はどこにも保存しない。要求の本文や会話をログに出さない
+// 保存するのは、案内役の問いがストックのどれだったかだけ（docs/ADMIN.md 2 節。文そのものは残さない）
 import { buildBody, validateRequest, FALLBACK_BETA, supportsFallbacks } from '../_lib/prompt.js';
 import { relayEvents, sse } from '../_lib/relay.js';
 import { fetchStatuses, withoutSold } from '../_lib/works-status.js';
+import { recordAsked } from '../_lib/events.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const CATALOG_TTL = 600_000;      // カタログを isolate の中に持つ時間（ミリ秒）
@@ -98,14 +100,15 @@ export async function onRequestOptions({ request, env }) {
   return new Response(null, { status: origin ? 204 : 403, headers: corsHeaders(request, origin) });
 }
 
-export async function onRequestPost({ request, env }) {
-  try { return await handle(request, env); } catch (e) {
+export async function onRequestPost(ctx) {
+  const { request, env } = ctx;
+  try { return await handle(request, env, ctx); } catch (e) {
     console.error('想定外の失敗', String(e));
     return json(502, { error: 'upstream' }, corsHeaders(request, allowedOrigin(request, env)));
   }
 }
 
-async function handle(req, env) {
+async function handle(req, env, ctx) {
   const origin = allowedOrigin(req, env);
   const cors = corsHeaders(req, origin);
   if (!origin) return json(403, { error: 'bad_request' }, cors);
@@ -160,8 +163,9 @@ async function handle(req, env) {
     async start(controller) {
       const send = (obj) => controller.enqueue(enc.encode(sse(obj)));
       let ended = false;
+      let said = '';   // 問いの照合だけに使う（保存しない）
       const handleEv = (ev) => {
-        if ('text' in ev) send({ text: ev.text });
+        if ('text' in ev) { said += ev.text; send({ text: ev.text }); }
         else if ('recommend' in ev) send({ recommend: ev.recommend });
         else if ('refusal' in ev) send({ error: 'refusal' });
         else if ('error' in ev) { send({ error: 'upstream' }); send({ done: true }); ended = true; }
@@ -181,6 +185,11 @@ async function handle(req, env) {
       } finally {
         try { await events.return(undefined); } catch { /* すでに閉じた */ }
         try { controller.close(); } catch { /* 相手が先に切った */ }
+        // どの問いが使われたかを記録（失敗しても、なくても、会話には関係ない）
+        try {
+          const job = recordAsked(env, { sid: body.sid, lang: body.lang, seed: body.seed || undefined, catalog, text: said }).catch((e) => console.error('問いを記録できない', String(e)));
+          if (typeof ctx.waitUntil === 'function') ctx.waitUntil(job);
+        } catch { /* 同上 */ }
       }
     },
     // ブラウザが切った（見切り、ページ移動、「もう一度」）ら上流も止める。読み続けると出力トークンが無駄になる

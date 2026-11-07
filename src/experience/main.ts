@@ -118,7 +118,7 @@ function setBehind(stage: HTMLElement): HTMLElement[] {
 
 // stage の中の、いま操作できる要素の間で Tab を回す
 function trapTab(stage: HTMLElement, e: KeyboardEvent) {
-  const f = [...stage.querySelectorAll<HTMLElement>('button, a[href], input, select, [tabindex]:not([tabindex="-1"])')]
+  const f = [...stage.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')]
     .filter((el) => !(el as HTMLButtonElement).disabled && !el.closest('[inert], [hidden]') && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden');
   if (!f.length) return;
   const i = f.indexOf(document.activeElement as HTMLElement);

@@ -10,8 +10,16 @@ compatibility_date = "2025-09-01"
 # 開発中はリーズナブルに Sonnet 5.5。接客の質を上げたければ claude-opus-5-5
 CLAUDE_MODEL = "claude-sonnet-5-5"
 
-# 計測（E-14。docs/RECOMMEND.md 5 節）：数だけを貯める KV（namespace ETP_STATS）。IP・名前・会話は保存しない
+# 計測（E-14。docs/RECOMMEND.md 5 節）：数だけを貯める KV（namespace ETP_STATS）。IP・名前・会話の文は保存しない
 # 見る口 /api/stats は Secret の STATS_KEY と一致したときだけ返す（npx wrangler pages secret put STATS_KEY --project-name enter-the-painting）
 [[kv_namespaces]]
 binding = "STATS"
 id = "5120585b564346e38635bf7c3cf8e867"
+
+# 感想と出来事の保存先（docs/ADMIN.md 2 節、6 節）：Cloudflare D1。データベースを作ってから下の 5 行のコメントを外す
+# 外すまで感想カードは出ない。サイトの他の部分は今までどおり動く。id の無い binding を残すと配置が失敗するのでコメントにしてある
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "meet-the-painting"
+# database_id = "<wrangler d1 create の結果>"
+# migrations_dir = "migrations"

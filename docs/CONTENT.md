@@ -107,7 +107,7 @@ natural light, photorealistic interior photo, a person or furniture for scale, 1
 | wall_note | 壁幅 約 {w} m として合成 | Composited assuming a wall about {w} m wide |
 | once_more | 実物の前でもう一度 | Now, stand in front of the real one |
 | save | 保存・共有 | Save / Share |
-| privacy | 計測は Cookie なし、IP は保存しません | No cookies, no IP stored |
+| privacy | © SHEER（11-07 P-17 で計測の断りをやめた。何を残すかは `/data-note.html`。`docs/ADMIN.md`） | © SHEER |
 | story_note | 物語 | A short story |
 | contact | 作家に連絡 | Contact the artist |
 | share | 共有 | Share |

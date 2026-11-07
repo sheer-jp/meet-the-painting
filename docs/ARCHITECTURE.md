@@ -262,4 +262,4 @@ export function buildSystem(catalog, lang): Array<{ type: 'text'; text: string; 
 export function buildBody(catalog, lang, messages, model): object;   // Messages API の本文（stream: true）
 ```
 
-守ること：`recommend/` は `fluid/`・`story/`・`space/` を import しない。会話をどこにも保存しない。個人情報を聞かない（system で禁止）。
+守ること：`recommend/` は `fluid/`・`story/`・`space/` を import しない。会話の文をどこにも保存しない（構造化した出来事と、送られた感想だけを D1 に残す。`docs/ADMIN.md`）。個人情報を聞かない（system で禁止）。

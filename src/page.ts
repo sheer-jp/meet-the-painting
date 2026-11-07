@@ -2,6 +2,7 @@
 import { detectLang, rememberLang, applyLang, fillLangSelect, ensureLang, isLangReady, t, type Lang } from './i18n';
 import { Soundscape } from './audio/Soundscape';
 import { vrAvailable, bandFor } from './concierge/enter';
+import { sessionId, createFollowup } from './followup/trigger';
 import './ui/page.css';
 
 const workId = document.querySelector<HTMLMetaElement>('meta[name="work"]')?.content || null;
@@ -70,12 +71,12 @@ function toast(msg: string) {
   document.body.appendChild(el); setTimeout(() => el.remove(), 1800);
 }
 
-// 計測（E-14）：数だけを送る。会話の文・個人の情報は送らない。失敗しても、ブロックされていても何もしない
+// 計測（E-14、docs/ADMIN.md）：出来事を送る。会話の文・個人の情報は送らない。匿名 id はタブごと。失敗しても、ブロックされていても何もしない
 const statUrl = (document.querySelector<HTMLMetaElement>('meta[name="recommend-api"]')?.content.trim() || '').replace(/\/recommend\/?$/, '/stat') || '/api/stat';
 export function stat(ev: string, id: string | null = null, via: string | null = null) {
   try {
     if (matchMedia('(prefers-reduced-data: reduce)').matches) return;
-    const body = JSON.stringify(via ? { ev, id, via } : { ev, id });
+    const body = JSON.stringify({ ev, id, ...(via ? { via } : {}), sid: sessionId(), lang });
     if (navigator.sendBeacon?.(statUrl, body)) return;
     fetch(statUrl, { method: 'POST', body, keepalive: true }).catch(() => {});
   } catch { /* 数えられなくてよい */ }
@@ -103,6 +104,18 @@ if (cg) {
   cg.addEventListener('click', hold, true);
   cg.addEventListener('submit', hold, true);
   cg.querySelector('a.cg-skip')?.addEventListener('click', () => stat('concierge_skip'));
+  // 押した選択肢（文はサーバーがカタログと照合する）と、自由入力があったこと（文は送らない）。hold のあとに登録する（hold が止めた操作は数えない）
+  cg.addEventListener('click', (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>('button');
+    if (!b) return;
+    if (b.classList.contains('cg-write')) stat('cg_write');
+    else if (b.dataset.openerIndex != null) stat('cg_opener', null, (b.innerText || b.textContent || '').trim());
+    else if (b.dataset.value) stat('cg_rule', null, b.dataset.value);
+  }, true);
+  cg.addEventListener('submit', (e) => {
+    const input = (e.target as HTMLFormElement).querySelector('input');
+    if (input && input.type !== 'password' && input.value.trim()) stat('cg_free');
+  }, true);
   const loading = import('./concierge/index').then((m) => {
     m.mountConcierge(cg, { lang, api, configUrl: api ? `${api.replace(/\/$/, '')}/config` : '', catalogUrl: 'catalog.json', retry, stat });
     ready = true;
@@ -183,7 +196,13 @@ if (wall) {
   }, { passive: false });
 }
 
+// 感想カード（docs/ADMIN.md 3 節）：絵を見たあとに案内役が小さく現れる。本体は必要になってから import()。読めなくても何も起きない
+const followup = createFollowup({ stat, lang: () => lang });
+followup.listenStoryEnd();
+
 if (workId) {
+  stat('work_view', workId, ['concierge', 'gallery'].includes(url.searchParams.get('via') || '') ? url.searchParams.get('via') : 'direct');
+  followup.onWorkPage(workId, url.searchParams.get('after') === '1');
   const enter = document.getElementById('enter') as HTMLButtonElement;
   const enterVr = document.getElementById('enter-vr') as HTMLButtonElement;
   // 受付から来たとき（?via=concierge）：絵の下・「入る」の上に細い帯（docs/ENTRANCE.md 3.1）
@@ -242,7 +261,7 @@ if (workId) {
     try {
       await unlocking;
       const { run } = await import('./experience/main');
-      await run({ workId, lang, vr, fromQr, debug, sound, xrSession, onExit: () => { enter.disabled = false; enterVr.disabled = false; enter.textContent = label; } });
+      await run({ workId, lang, vr, fromQr, debug, sound, xrSession, onExit: () => { enter.disabled = false; enterVr.disabled = false; enter.textContent = label; followup.afterExperience(workId); } });
     } catch (e) {
       console.error(e);
       enter.disabled = false; enterVr.disabled = false; enter.textContent = label;
@@ -268,7 +287,7 @@ if (workId) {
         // 素の部屋と絵の写真（絵を別の層にしてドラッグで動かす。base が無い古い space.json は合成画像のまま）
         const bases = sp.rooms.map((r) => (r.base ? `${assetBase}${r.base}` : null));
         const painting = sp.painting ? `${assetBase}works/${workId}/generated/${sp.painting}` : undefined;
-        mod.openLightbox({ space: sp, srcs: imgs.map((im) => im.currentSrc || im.src), bases, painting, index: i, lang, returnFocus: imgs[i] });
+        mod.openLightbox({ space: sp, srcs: imgs.map((im) => im.currentSrc || im.src), bases, painting, index: i, lang, returnFocus: imgs[i], onClose: () => followup.afterRooms(workId) });
       } catch (e) { console.warn('拡大表示を開けない', e); }
     };
     imgs.forEach((im, i) => {

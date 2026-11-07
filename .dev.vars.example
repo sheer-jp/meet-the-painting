@@ -1,0 +1,4 @@
+# ローカル確認用（docs/ADMIN.md 7 節）。cp .dev.vars.example .dev.vars。本物の値を入れない。.dev.vars はコミットされない
+GOOGLE_CLIENT_ID=local-test-client.apps.googleusercontent.com
+ADMIN_EMAILS=owner@example.test
+ADMIN_SESSION_SECRET=local-test-secret-do-not-use-in-production-000000

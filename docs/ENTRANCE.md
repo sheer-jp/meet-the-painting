@@ -67,7 +67,7 @@ V0（11-06 夕方）に、作家の判断を反映した版。この文書が入
 - **終わったあと**：カードの下に小さく「もう一度、話す」。押すと会話が消えて最初に戻る
 - **API が無い・失敗・拒否**：ルールだけの版（3 問の選択肢）を**同じ画面・同じキャラクター**で出す。見た目は変えない。失敗したことは言わない（「少し考えさせてください」程度）
 - **合言葉（実験のあいだ）**：Function 側の `env.PASSPHRASE` が空でないとき、ブラウザは最初の送信の前に 1 回だけ「合言葉」を聞く（キャラクターが「ここは準備中の部屋なので、合言葉をいただけますか」）。入力は `X-Passphrase` ヘッダで API に添え、Function が比べて違えば 403。一致したら `localStorage` に覚える。違えば（または合言葉を持たなければ）ルールだけの版で会話する。ブラウザのコードに合言葉を置かない。合言葉が要るかどうかは、ページ読み込み時に `GET /api/recommend/config`（`{ passphrase: true|false }` だけ返す）で知る。`PASSPHRASE` は Pages の Secret。空なら照合しない
-- 言語は端末の言語（既存の判定）。キャラクターの文は作家の言葉のトーン（説明しない、売り込まない、情景で話す）。会話は保存しない。名前や連絡先は聞かない
+- 言語は端末の言語（既存の判定）。キャラクターの文は作家の言葉のトーン（説明しない、売り込まない、情景で話す）。会話の文は保存しない（押した選択肢などの構造化した出来事だけを残す。`docs/ADMIN.md`）。名前や連絡先は聞かない
 
 ### 3.2 スマホの要件
 
@@ -194,7 +194,7 @@ V1 でやること（E-4）：
 
 ## 6. API と置き場（V0 から変更なし）
 
-- Messages API（ストリーミング）+ ツール `recommend_work`（strict）。Cloudflare Pages Functions `/api/recommend`。会話は保存しない
+- Messages API（ストリーミング）+ ツール `recommend_work`（strict）。Cloudflare Pages Functions `/api/recommend`。会話の文は保存しない（押した選択肢などの構造化した出来事だけを残す。`docs/ADMIN.md`）
 - モデル：`claude-sonnet-5-5`（開発中）。`CLAUDE_MODEL` で上げる
 - 拒否：`fallbacks: "default"`。それでもだめならルールだけの版
 - 課金よけ：コンソールの月上限 $200（11-06 設定、$10 で通知）。IP ごとの回数制限。合言葉（3.1）
@@ -202,7 +202,7 @@ V1 でやること（E-4）：
 
 ## 7. 計測（11-06 深夜に実装。作家「Cookie はあってよい。誰がどの絵を見たか、会話の数を見たい」）
 
-- **数だけを Cloudflare KV に貯める**（個人は追わない。IP・UA・会話の文・Cookie は保存しない）。`POST /api/stat`（`concierge_start` / `concierge_turn` / `concierge_recommend:<id>` / `concierge_other` / `concierge_skip` / `enter:<via>:<id>` / `gallery_pick:<id>`）。日ごと（JST、40 日で消える）と累計
+- **数を Cloudflare KV に貯める**（KV には個人を追う情報を入れない。IP・UA・会話の文・Cookie は保存しない。11-08 からは別に、匿名 id でつないだ出来事を D1 に残す。`docs/ADMIN.md` 2 節）。`POST /api/stat`（`concierge_start` / `concierge_turn` / `concierge_recommend:<id>` / `concierge_other` / `concierge_skip` / `enter:<via>:<id>` / `gallery_pick:<id>`）。日ごと（JST、40 日で消える）と累計
 - **見る**：`https://enter-the-painting.pages.dev/stats.html?key=<STATS_KEY>`（合計・絵ごと・直近 30 日の表）。`STATS_KEY` は 11-06 に Fable が生成して Pages の Secret に登録済み。鍵と URL は `ai-dev/_meta/development/enter-the-painting/stats-key.txt`（git 追跡外、作家だけが読む）
 - KV の無料枠は 1 日 1,000 書き込み（1 出来事 2 書き込み）。来場の多い日は数え漏れる。有料プランか、まとめ書きは後で
 - ページ閲覧の数は Cloudflare Web Analytics（11-06 に Fable がダッシュボードで有効化。Pages → enter-the-painting → Metrics → Web Analytics「View Web Analytics」で見る）
