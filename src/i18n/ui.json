@@ -1212,16 +1212,40 @@
     "pt": "impostos incluídos"
   },
   "buy_note": {
-    "ja": "一点ものの原画です。東京から配送します。送料は、国内は着払い、海外は別途ご案内します。",
-    "en": "An original, one of a kind. Shipped from Tokyo. Within Japan, shipping is paid on delivery; for overseas orders, we will send the shipping cost separately.",
-    "zh-Hans": "这是独一无二的原作，从东京发货。日本国内运费到付，海外运费另行通知。",
-    "zh-Hant": "這是獨一無二的原作，從東京出貨。日本國內運費到付，海外運費另行通知。",
-    "ko": "단 한 점뿐인 원화입니다. 도쿄에서 배송합니다. 일본 내 배송비는 착불이며, 해외 배송비는 별도로 안내합니다.",
-    "fr": "Une œuvre originale, pièce unique. Expédiée depuis Tokyo. Au Japon, les frais de port sont payés à la livraison ; à l’étranger, ils sont communiqués séparément.",
-    "de": "Ein einzigartiges Original. Versand aus Tokio. In Japan zahlst du den Versand bei Lieferung; für das Ausland teilen wir die Kosten separat mit.",
-    "es": "Una obra original y única. Se envía desde Tokio. En Japón, el envío se paga al recibirla; para otros países, se indica el coste aparte.",
-    "it": "Un originale, pezzo unico. Spedito da Tokyo. In Giappone la spedizione si paga alla consegna; per l’estero il costo viene comunicato a parte.",
-    "pt": "Um original, peça única. Enviado de Tóquio. No Japão, o envio é pago na entrega; para o estrangeiro, o custo é indicado à parte."
+    "ja": "一点ものの原画です。東京から配送します。",
+    "en": "An original, one of a kind. Shipped from Tokyo.",
+    "zh-Hans": "这是独一无二的原作，从东京发货。",
+    "zh-Hant": "這是獨一無二的原作，從東京出貨。",
+    "ko": "단 한 점뿐인 원화입니다. 도쿄에서 배송합니다.",
+    "fr": "Une œuvre originale, pièce unique. Expédiée depuis Tokyo.",
+    "de": "Ein einzigartiges Original. Versand aus Tokio.",
+    "es": "Una obra original y única. Se envía desde Tokio.",
+    "it": "Un originale, pezzo unico. Spedito da Tokyo.",
+    "pt": "Um original, peça única. Enviado de Tóquio."
+  },
+  "buy_ship_jp": {
+    "ja": "国内：送料は着払いです。発送のときにメールでお知らせします。",
+    "en": "Within Japan: shipping is paid on delivery. We will email you when it ships.",
+    "zh-Hans": "日本国内：运费到付。发货时会发邮件通知您。",
+    "zh-Hant": "日本國內：運費到付。出貨時會發電子郵件通知您。",
+    "ko": "일본 내: 배송비는 착불입니다. 발송할 때 이메일로 알려 드립니다.",
+    "fr": "Au Japon : les frais de port sont payés à la livraison. Nous vous prévenons par e-mail à l’expédition.",
+    "de": "Innerhalb Japans: Der Versand wird bei Lieferung bezahlt. Beim Versand informieren wir dich per E-Mail.",
+    "es": "En Japón: el envío se paga al recibirla. Te avisaremos por correo cuando se envíe.",
+    "it": "In Giappone: la spedizione si paga alla consegna. Ti avvisiamo via e-mail alla spedizione.",
+    "pt": "No Japão: o envio é pago na entrega. Avisamos por e-mail quando for enviado."
+  },
+  "buy_ship_intl": {
+    "ja": "海外：送料が確定したら、Stripe の請求をメールでお送りします。関税や輸入税はお客さまのご負担です。",
+    "en": "Overseas: once the shipping cost is confirmed, we will email you a Stripe invoice. Customs duties and import taxes are the buyer’s responsibility.",
+    "zh-Hans": "海外：运费确定后，我们会通过邮件发送 Stripe 账单。关税和进口税由买家承担。",
+    "zh-Hant": "海外：運費確定後，我們會以電子郵件寄送 Stripe 帳單。關稅與進口稅由買家負擔。",
+    "ko": "해외: 배송비가 확정되면 Stripe 청구서를 이메일로 보내 드립니다. 관세와 수입세는 구매자 부담입니다.",
+    "fr": "À l’étranger : une fois les frais de port fixés, nous vous envoyons une facture Stripe par e-mail. Les droits de douane et taxes d’importation sont à la charge de l’acheteur.",
+    "de": "Ausland: Sobald die Versandkosten feststehen, senden wir dir eine Stripe-Rechnung per E-Mail. Zölle und Einfuhrsteuern trägt der Käufer.",
+    "es": "En el extranjero: cuando se confirme el coste de envío, te enviaremos una factura de Stripe por correo. Los aranceles e impuestos de importación corren a cargo del comprador.",
+    "it": "All’estero: una volta definito il costo di spedizione, ti invieremo una fattura Stripe via e-mail. Dazi e tasse di importazione sono a carico dell’acquirente.",
+    "pt": "No estrangeiro: quando o custo de envio for confirmado, enviaremos uma fatura Stripe por e-mail. Direitos aduaneiros e impostos de importação ficam a cargo do comprador."
   },
   "sold_tag": {
     "ja": "SOLD",

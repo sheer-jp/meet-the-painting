@@ -193,19 +193,19 @@
       "quad_px": [
         [
           635,
-          467
+          195
         ],
         [
           815,
-          467
+          195
         ],
         [
           815,
-          622
+          349
         ],
         [
           635,
-          622
+          349
         ]
       ],
       "px_per_cm": 3.4,
@@ -242,16 +242,16 @@
         "pt": "Cerca de um quinto da altura do teto desta entrada (cerca de 230 cm)."
       },
       "about": {
-        "ja": "壁の幅は約 2.3 m。家具の上端から 20 cm ほど空けて掛けています（絵の中心は床から約 65 cm）。",
-        "en": "The wall is about 2.3 m wide. The painting hangs about 20 cm above the furniture (center about 65 cm from the floor).",
-        "zh-Hans": "墙宽约 2.3 m。挂在家具上沿往上约 20 cm 处（画的中心离地约 65 cm）。",
-        "zh-Hant": "牆寬約 2.3 m。掛在家具上緣往上約 20 cm 處（畫的中心離地約 65 cm）。",
-        "ko": "벽의 폭은 약 2.3 m. 가구 윗면에서 20 cm쯤 띄워 걸었습니다(그림 중심은 바닥에서 약 65 cm).",
-        "fr": "Le mur fait environ 2,3 m de large. Le tableau est accroché à environ 20 cm au-dessus du meuble (centre à environ 65 cm du sol).",
-        "de": "Die Wand ist etwa 2,3 m breit. Das Bild hängt etwa 20 cm über der Oberkante des Möbels (Mitte etwa 65 cm über dem Boden).",
-        "es": "La pared mide unos 2,3 m de ancho. El cuadro está colgado unos 20 cm por encima del mueble (centro a unos 65 cm del suelo).",
-        "it": "La parete è larga circa 2,3 m. Il quadro è appeso circa 20 cm sopra il mobile (centro a circa 65 cm dal pavimento).",
-        "pt": "A parede tem cerca de 2,3 m de largura. O quadro está pendurado cerca de 20 cm acima do móvel (centro a cerca de 65 cm do chão)."
+        "ja": "壁の幅は約 2.3 m。目の高さ（床から約 145 cm）に掛けています。",
+        "en": "The wall is about 2.3 m wide. The painting hangs at eye level (about 145 cm from the floor).",
+        "zh-Hans": "墙宽约 2.3 m。挂在视线高度（离地约 145 cm）。",
+        "zh-Hant": "牆寬約 2.3 m。掛在視線高度（離地約 145 cm）。",
+        "ko": "벽의 폭은 약 2.3 m. 눈높이(바닥에서 약 145 cm)에 걸었습니다.",
+        "fr": "Le mur fait environ 2,3 m de large. Le tableau est accroché à hauteur des yeux (à environ 145 cm du sol).",
+        "de": "Die Wand ist etwa 2,3 m breit. Das Bild hängt auf Augenhöhe (etwa 145 cm über dem Boden).",
+        "es": "La pared mide unos 2,3 m de ancho. El cuadro está colgado a la altura de los ojos (a unos 145 cm del suelo).",
+        "it": "La parete è larga circa 2,3 m. Il quadro è appeso all'altezza degli occhi (a circa 145 cm dal pavimento).",
+        "pt": "A parede tem cerca de 2,3 m de largura. O quadro está pendurado à altura dos olhos (a cerca de 145 cm do chão)."
       },
       "note": {
         "ja": "部屋は AI で作ったイメージで、寸法はだいたいこのくらい、という目安です。絵は実物の写真です。",
@@ -292,19 +292,19 @@
       "quad_px": [
         [
           704,
-          393
+          262
         ],
         [
           896,
-          393
+          262
         ],
         [
           896,
-          558
+          427
         ],
         [
           704,
-          558
+          427
         ]
       ],
       "px_per_cm": 3.625,
@@ -341,16 +341,16 @@
         "pt": "Cerca de um quinto da altura do teto deste espaço (cerca de 240 cm)."
       },
       "about": {
-        "ja": "壁の幅は約 3.2 m。家具の上端から 20 cm ほど空けて掛けています（絵の中心は床から約 100 cm）。",
-        "en": "The wall is about 3.2 m wide. The painting hangs about 20 cm above the furniture (center about 100 cm from the floor).",
-        "zh-Hans": "墙宽约 3.2 m。挂在家具上沿往上约 20 cm 处（画的中心离地约 100 cm）。",
-        "zh-Hant": "牆寬約 3.2 m。掛在家具上緣往上約 20 cm 處（畫的中心離地約 100 cm）。",
-        "ko": "벽의 폭은 약 3.2 m. 가구 윗면에서 20 cm쯤 띄워 걸었습니다(그림 중심은 바닥에서 약 100 cm).",
-        "fr": "Le mur fait environ 3,2 m de large. Le tableau est accroché à environ 20 cm au-dessus du meuble (centre à environ 100 cm du sol).",
-        "de": "Die Wand ist etwa 3,2 m breit. Das Bild hängt etwa 20 cm über der Oberkante des Möbels (Mitte etwa 100 cm über dem Boden).",
-        "es": "La pared mide unos 3,2 m de ancho. El cuadro está colgado unos 20 cm por encima del mueble (centro a unos 100 cm del suelo).",
-        "it": "La parete è larga circa 3,2 m. Il quadro è appeso circa 20 cm sopra il mobile (centro a circa 100 cm dal pavimento).",
-        "pt": "A parede tem cerca de 3,2 m de largura. O quadro está pendurado cerca de 20 cm acima do móvel (centro a cerca de 100 cm do chão)."
+        "ja": "壁の幅は約 3.2 m。座ったときの目の高さ（床から約 140 cm）に掛けています。",
+        "en": "The wall is about 3.2 m wide. The painting hangs at seated eye level (about 140 cm from the floor).",
+        "zh-Hans": "墙宽约 3.2 m。挂在坐着时的视线高度（离地约 140 cm）。",
+        "zh-Hant": "牆寬約 3.2 m。掛在坐著時的視線高度（離地約 140 cm）。",
+        "ko": "벽의 폭은 약 3.2 m. 앉았을 때의 눈높이(바닥에서 약 140 cm)에 걸었습니다.",
+        "fr": "Le mur fait environ 3,2 m de large. Le tableau est accroché à hauteur des yeux en position assise (à environ 140 cm du sol).",
+        "de": "Die Wand ist etwa 3,2 m breit. Das Bild hängt auf Augenhöhe im Sitzen (etwa 140 cm über dem Boden).",
+        "es": "La pared mide unos 3,2 m de ancho. El cuadro está colgado a la altura de los ojos estando sentado (a unos 140 cm del suelo).",
+        "it": "La parete è larga circa 3,2 m. Il quadro è appeso all'altezza degli occhi da seduti (a circa 140 cm dal pavimento).",
+        "pt": "A parede tem cerca de 3,2 m de largura. O quadro está pendurado à altura dos olhos de quem está sentado (a cerca de 140 cm do chão)."
       },
       "note": {
         "ja": "部屋は AI で作ったイメージで、寸法はだいたいこのくらい、という目安です。絵は実物の写真です。",
@@ -369,5 +369,5 @@
   ],
   "availability": null,
   "contact": null,
-  "generated_at": "2026-11-07T05:05:13.812Z"
+  "generated_at": "2026-11-07T16:39:12.542Z"
 }

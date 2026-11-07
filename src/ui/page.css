@@ -52,7 +52,7 @@ main.work { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-a
 .buy-price { margin: 0 0 12px; font-family: var(--serif); font-size: 20px; letter-spacing: .04em; color: var(--ink); }
 .buy-price small { margin-left: 4px; font-size: 12px; color: var(--ink-2); }
 .buy .btn { min-height: 52px; border-radius: 26px; }
-.buy-note { margin: 10px 0 0; font-size: 12px; line-height: 1.8; letter-spacing: .04em; color: var(--ink-2); }
+.buy-note { margin: 8px 0 0; font-size: 12px; line-height: 1.8; letter-spacing: .04em; color: var(--ink-2); }
 .sold-tag { display: inline-block; margin-top: 4px; padding: 1px 7px; border: 1px solid var(--ink); border-radius: 3px; font: 400 10px/1.5 var(--sans); letter-spacing: .1em; color: var(--ink); }
 .buy .sold-tag { margin: 0 0 10px; font-size: 12px; padding: 2px 10px; }
 .buy-sold-note { margin: 0; font-family: var(--serif); font-size: 15px; line-height: 1.9; letter-spacing: .05em; color: var(--ink); }

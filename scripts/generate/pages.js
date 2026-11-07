@@ -5,7 +5,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const t = (obj, lang) => (obj && (obj[lang] || obj.ja || obj.en)) || '';
 
 const UI_JA = {
-  enter: '絵の世界をのぞく', enter_vr: 'VR でのぞく', enter_note: '色が動き出し、作家の言葉が流れます（約 2 分）', rooms: '部屋で見る', contact: '作家に連絡', share: '共有', others: '他の作品', buy: 'この絵を購入する', buy_tax: '税込', buy_note: '一点ものの原画です。東京から配送します。送料は、国内は着払い、海外は別途ご案内します。', cg_all: 'ギャラリー全体を見る',   // 11-07 作家「他の作品の下に、ギャラリー全体を見るボタン」
+  enter: '絵の世界をのぞく', enter_vr: 'VR でのぞく', enter_note: '色が動き出し、作家の言葉が流れます（約 2 分）', rooms: '部屋で見る', contact: '作家に連絡', share: '共有', others: '他の作品', buy: 'この絵を購入する', buy_tax: '税込', buy_note: '一点ものの原画です。東京から配送します。', buy_ship_jp: '国内：送料は着払いです。発送のときにメールでお知らせします。', buy_ship_intl: '海外：送料が確定したら、Stripe の請求をメールでお送りします。関税や輸入税はお客さまのご負担です。', cg_all: 'ギャラリー全体を見る',   // 11-07 作家「他の作品の下に、ギャラリー全体を見るボタン」
   size: '寸法', medium: '技法', available: '販売中', sold: '売約済み', not_for_sale: '非売',
   room_cat_studio: '一人暮らしの部屋', room_cat_house: '広い家',   // 11-07 FIX-A：玄関・靴箱の部屋にも付くので「リビング」を外す（ui.json は別途）
   rooms_note: '部屋は AI 生成のイメージ。絵は実物の写真。寸法は目安', story_note: '小さな物語', language: '言語', tap_for_size: '画像をタップすると、寸法と詳しい説明。絵をドラッグして、好きな場所に置けます',
@@ -128,6 +128,8 @@ ${FONTS}
       <p class="buy-price">¥${Number(work.buy.price_jpy).toLocaleString('en-US')}<small>（<span data-i18n="buy_tax">${UI_JA.buy_tax}</span>）</small></p>
       <a class="btn" id="buy" href="${esc(work.buy.url)}" target="_blank" rel="noopener" data-i18n="buy">${UI_JA.buy}</a>
       <p class="buy-note" data-i18n="buy_note">${UI_JA.buy_note}</p>
+      <p class="buy-note" data-i18n="buy_ship_jp">${UI_JA.buy_ship_jp}</p>
+      <p class="buy-note" data-i18n="buy_ship_intl">${UI_JA.buy_ship_intl}</p>
     </div>` : ''}
   </div>
   ${rooms ? `<section class="rooms"><h2 class="eyebrow"><span>Rooms</span><span data-i18n="rooms">${UI_JA.rooms}</span></h2><div class="strip">${rooms}</div><p class="rooms-hint"><span class="rooms-hint-do" data-i18n="tap_for_size">${UI_JA.tap_for_size}</span><span class="rooms-hint-note" data-i18n="rooms_note">${UI_JA.rooms_note}</span></p></section>` : ''}
