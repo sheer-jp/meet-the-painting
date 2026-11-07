@@ -26,6 +26,9 @@
 .cg-front img { display: block; width: 100%; height: 100%; object-fit: cover; }
 /* 裏面：紙白の面（回っている間に見える） */
 .cg-back { position: absolute; inset: 0; background: #faf8f3; border: 1px solid var(--line); transform: rotateY(180deg); backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+/* 回り終わったら裏面を消す。WebKit は backface-visibility があっても止まったあと裏面を絵の上に描くことがある（白い面だけになる） */
+.cg-back { animation: cg-back-off 0s linear var(--spin-d) forwards; }
+@keyframes cg-back-off { to { visibility: hidden; } }
 @keyframes cg-spin { from { transform: translateY(28px) rotateY(var(--spin-a)); } to { transform: translateY(0) rotateY(0deg); } }
 @keyframes cg-shrink { 0%, 82% { scale: .86; } 100% { scale: 1; } }
 
@@ -115,6 +118,7 @@
   .cg-dots i { animation: none; opacity: .6; }
   .cg-card { animation: cg-fade .3s ease both; }
   .cg-canvas, .cg-rise { animation: none; }
+  .cg-back { display: none; }
   .cg-glow, .cg-sheen { display: none; }
   /* 沈む・立ち上がるはフェードだけ。時間は同じ（0.5 秒） */
   .cg.is-sink > :not(.cg2) { opacity: 0; transform: none; filter: none; }

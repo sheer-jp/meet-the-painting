@@ -4,6 +4,7 @@
 import { createRequire } from 'node:module';
 import { readFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import sharp from 'sharp';
 const pw = createRequire(import.meta.url)('playwright');
 
 const AUDIO_STUB = () => {
@@ -189,6 +190,10 @@ export async function runRegress({ base, kinds = ['chromium', 'webkit'], shots =
         await page.goto(base + '/', { waitUntil: 'load' });
         await toC2(page);
         check(await page.locator('.cg-card').getAttribute('data-work') === 'harmoney' && await inView(page, '.cg-enter'), T(`#19 C2 ${w}×${h}：縦長の絵でも主ボタンが見える`));
+        // 絵が本当に描かれている（WebKit で裏面の白い面だけになっていた）
+        const box = await page.locator('.cg-stage').boundingBox();
+        const px = await sharp(await page.screenshot({ clip: box })).stats();
+        check(px.channels.slice(0, 3).some((c) => c.stdev > 12), T(`C2 ${w}×${h}：絵が見える（ばらつき ${Math.round(px.channels[0].stdev)}）`));
         await shot(page, `${kind}-19-c2-${w}x${h}`);
         await done();
       }
