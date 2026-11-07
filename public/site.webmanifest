@@ -1,6 +1,6 @@
 {
-  "name": "絵と出会う / Meet the Painting",
-  "short_name": "絵と出会う",
+  "name": "Meet the Painting",
+  "short_name": "Meet the Painting",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

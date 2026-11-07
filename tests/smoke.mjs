@@ -507,7 +507,7 @@ try {
   // 管理ページの HTML（.gitignore で落ちていた。QA #1）
   {
     const r = await fetch(`http://localhost:${PORT}/admin/`);
-    check(r.status === 200 && /絵と出会う/.test(await r.text()), `/admin/ が 200（${r.status}）`);
+    check(r.status === 200 && /Meet the Painting/.test(await r.text()), `/admin/ が 200（${r.status}）`);
   }
   // JS の予算（CLAUDE.md、gzip）：作品ページ 20KB、受付 27KB（ページ + 受付の会話）、体験 300KB
   {

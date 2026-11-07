@@ -84,7 +84,7 @@ export async function runRegress({ base, kinds = ['chromium', 'webkit'], shots =
 
     if (want(1) && kind === 'chromium') {
       const r = await fetch(`${base}/admin/`);
-      check(r.status === 200 && /絵と出会う/.test(await r.text()), T(`#1 /admin/ が 200（${r.status}）`));
+      check(r.status === 200 && /Meet the Painting/.test(await r.text()), T(`#1 /admin/ が 200（${r.status}）`));
     }
 
     if (want(2) && kind === 'chromium') {

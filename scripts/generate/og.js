@@ -205,7 +205,7 @@ function shadowSvg(boxes, { blur = 7, dy = 5, opacity = 0.16 } = {}) {
 }
 
 const wall = () => sharp({ create: { width: OG_W, height: OG_H, channels: 3, background: '#ffffff' } });
-const brandSvg = () => textSvg('絵と出会う  Meet the Painting by SHEER', 64, 78, 26, { letterSpacing: 0.04 });
+const brandSvg = () => textSvg('Meet the Painting by SHEER', 64, 78, 26, { letterSpacing: 0.04 });
 
 /** 絵（実物の写真）を w×h に縮小する。縦横比はそもそも写真と同じなので歪まない */
 const paintingAt = (path, w, h) => sharp(path).resize(w, h, { fit: 'fill' }).toBuffer();
@@ -264,7 +264,7 @@ export async function writeIcons(root) {
   // PWA 用の 192 / 512（監査 11-07：manifest に無かった）
   for (const n of [192, 512]) await sharp(svg, { density: (72 * n) / 32 }).resize(n, n).flatten({ background: '#ffffff' }).removeAlpha().png().toFile(join(pub, `icon-${n}.png`));
   const manifest = {
-    name: '絵と出会う / Meet the Painting', short_name: '絵と出会う', start_url: './', scope: './', display: 'standalone',
+    name: 'Meet the Painting', short_name: 'Meet the Painting', start_url: './', scope: './', display: 'standalone',
     background_color: '#ffffff', theme_color: '#ffffff',
     icons: [
       { src: 'favicon.svg', sizes: 'any', type: 'image/svg+xml' },

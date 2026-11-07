@@ -67,7 +67,7 @@ describe('SNS カードの配置（作品：中央に 1 点）', () => {
 describe('カードの文字（Shippori Mincho の部分集合）', () => {
   it('ブランド名と題名の字がある', () => {
     expect(fontCovers('SHEER Gallery')).toBe(true);
-    expect(fontCovers('絵と出会う  Meet the Painting by SHEER')).toBe(true);
+    expect(fontCovers('Meet the Painting by SHEER')).toBe(true);
     expect(fontCovers('内なる心に咲く花よ　18 × 14 cm')).toBe(true);
   });
   it('パスにでき、幅は字数とともに伸びる', () => {

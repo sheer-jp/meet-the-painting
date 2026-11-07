@@ -70,14 +70,14 @@ function showLogin(notice) {
     h('label', { for: 'login-pw', text: 'パスワード' }), pass,
     send, err);
   app.replaceChildren(h('div', { class: 'login' },
-    h('h1', { text: '絵と出会う 管理' }),
+    h('h1', { text: 'Meet the Painting 管理' }),
     h('p', { text: '作家専用のページです。' }),
     form));
   user.focus();
 }
 
 // サーバーの不調を「設定がまだ」と言わない
-const showDown = () => app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
+const showDown = () => app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: 'Meet the Painting 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
 
 async function boot() {
   try {
@@ -87,7 +87,7 @@ async function boot() {
     let config = null;
     try { config = await api('/api/admin/config'); } catch { showDown(); return; }
     if (!config?.configured) {
-      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { text: '管理ページの設定がまだ終わっていないので、いまは誰も入れません。手順は docs/ADMIN.md 6 節です。' })));
+      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: 'Meet the Painting 管理' }), h('p', { text: '管理ページの設定がまだ終わっていないので、いまは誰も入れません。手順は docs/ADMIN.md 6 節です。' })));
       return;
     }
     if (e instanceof Unauthorized) { showLogin(); return; }
@@ -113,7 +113,7 @@ function showDashboard(name) {
     h('option', { value: '', text: 'すべて' }), Object.entries(REACTIONS).map(([v, t]) => h('option', { value: v, text: t })));
 
   app.replaceChildren(
-    h('header', { class: 'top' }, h('h1', { text: '絵と出会う 管理' }), h('span', { class: 'who', text: name }),
+    h('header', { class: 'top' }, h('h1', { text: 'Meet the Painting 管理' }), h('span', { class: 'who', text: name }),
       h('button', { type: 'button', class: 'text-btn', text: 'ログアウト', onclick: async () => { await api('/api/admin/logout', { method: 'POST' }).catch(() => {}); location.reload(); } })),
     period, notice, kpis,
     h('section', { id: 'fb' }, h('h2', { text: '届いた感想' }), h('p', { class: 'sub', text: '訪れた人が「作家に届ける」を押した文だけです。日時は日本時間。' }),

@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-**絵と出会う / Meet the Painting**（旧 Enter the Painting）。作家がいない場所で絵の魅力を伝えるオンラインギャラリー。案内役との会話で一枚に出会い、絵の世界（WebXR）に浸る。考え方の正は `docs/CONCEPT.md`。AI ハッカソンの提出作。
+**Meet the Painting**（語りかけるオンラインギャラリー。日本語の呼び名は「絵と出会う」）（旧 Enter the Painting）。作家がいない場所で絵の魅力を伝えるオンラインギャラリー。案内役との会話で一枚に出会い、絵の世界（WebXR）に浸る。考え方の正は `docs/CONCEPT.md`。AI ハッカソンの提出作。
 
 ## まず読む（毎回、この 5 つだけ）
 
