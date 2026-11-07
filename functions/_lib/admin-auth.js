@@ -74,17 +74,21 @@ export async function verifyPassword(password, stored) {
   return sameBytes(await derive(password, p.salt, p.iterations), p.hash);
 }
 
+// 設定の ID（Secret に入れるときに付いた改行を許す）
+/** @param {any} env */
+export const adminUsername = (env) => String(env?.ADMIN_USERNAME ?? '').trim();
+
 // ID とパスワードの確かめ。ID が違っても同じだけ PBKDF2 を回し、応答も時間も区別しない
 /** @param {any} env @param {string} username @param {string} password */
 export async function checkCredentials(env, username, password) {
-  const [idOk, pwOk] = await Promise.all([sameText(username, String(env?.ADMIN_USERNAME ?? '')), verifyPassword(password, env?.ADMIN_PASSWORD_HASH)]);
+  const [idOk, pwOk] = await Promise.all([sameText(username, adminUsername(env)), verifyPassword(password, env?.ADMIN_PASSWORD_HASH)]);
   return idOk && pwOk;
 }
 
 // 設定がそろっているか。欠けていれば閉じる（fail closed）
 /** @param {any} env */
 export function adminConfigured(env) {
-  return !!String(env?.ADMIN_USERNAME ?? '').trim() && !!parsePasswordHash(env?.ADMIN_PASSWORD_HASH) && String(env?.ADMIN_SESSION_SECRET ?? '').length >= MIN_SECRET;
+  return !!adminUsername(env) && !!parsePasswordHash(env?.ADMIN_PASSWORD_HASH) && String(env?.ADMIN_SESSION_SECRET ?? '').length >= MIN_SECRET;
 }
 
 // ───── セッションの Cookie：<payload>.<HMAC> ─────
@@ -139,7 +143,7 @@ export function sameOriginWrite(req) {
 export async function currentAdmin(req, env) {
   if (!adminConfigured(env)) return null;
   const name = await verifySession(readCookie(req), env.ADMIN_SESSION_SECRET);
-  return name && await sameText(name, env.ADMIN_USERNAME) ? { name } : null;
+  return name && await sameText(name, adminUsername(env)) ? { name } : null;
 }
 
 // 管理の API の応答に必ず付けるヘッダ

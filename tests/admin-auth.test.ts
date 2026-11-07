@@ -184,6 +184,13 @@ describe('login と config', () => {
     expect(await a.text()).toBe(await b.text());
     expect(a.headers.get('Set-Cookie')).toBeNull(); expect(b.headers.get('Set-Cookie')).toBeNull();
   });
+  it('Secret の ID の末尾に改行が付いていても入れて、Cookie も通る', async () => {
+    const e = { ...env, ADMIN_USERNAME: `${USER}\n` };
+    const r = await login({ request: post(good), env: e });
+    expect(r.status).toBe(200);
+    const ctx = { request: new Request(`${ORIGIN}/api/admin/me`, { headers: { Cookie: r.headers.get('Set-Cookie')!.split(';')[0] } }), env: e, data: {} as Record<string, unknown>, next: async () => new Response('{}') };
+    expect((await guard(ctx)).status).toBe(200);
+  });
   it('設定が欠けている、ハッシュが壊れているなら 503（閉じる）。正しい組でも入れない', async () => {
     expect((await login({ request: post(good), env: {} })).status).toBe(503);
     expect((await login({ request: post(good), env: { ...env, ADMIN_PASSWORD_HASH: 'broken' } })).status).toBe(503);

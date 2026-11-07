@@ -1,5 +1,5 @@
 // ID とパスワードを確かめて Cookie を渡す（docs/ADMIN.md 5 節）。パスワードは保存しない。ログにもエラーにも出さない
-import { adminConfigured, adminJson, bodyTooLarge, checkCredentials, clearLoginFailures, loginBlocked, recordLoginFailure, sameOriginWrite, sessionCookie, signSession, LOGIN_WINDOW_MS } from '../../_lib/admin-auth.js';
+import { adminConfigured, adminJson, adminUsername, bodyTooLarge, checkCredentials, clearLoginFailures, loginBlocked, recordLoginFailure, sameOriginWrite, sessionCookie, signSession, LOGIN_WINDOW_MS } from '../../_lib/admin-auth.js';
 
 const MAX_BODY = 2048;
 const MAX_FIELD = 512;
@@ -24,5 +24,5 @@ export async function onRequestPost({ request: req, env }) {
     return adminJson(401, { error: 'invalid' });
   }
   await clearLoginFailures(env, ip);
-  return adminJson(200, { ok: true }, { 'Set-Cookie': sessionCookie(await signSession(env.ADMIN_USERNAME, env.ADMIN_SESSION_SECRET)) });
+  return adminJson(200, { ok: true }, { 'Set-Cookie': sessionCookie(await signSession(adminUsername(env), env.ADMIN_SESSION_SECRET)) });
 }
