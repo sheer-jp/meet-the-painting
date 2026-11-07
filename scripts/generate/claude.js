@@ -48,7 +48,7 @@ export async function translateWithClaude(missing, apiKey) {
   return out;
 }
 
-// 小さな物語の下書き（1 作品 1 本、日本語、3〜5 文）。作家が直す前提
+// 小さな物語の下書き（1 作品 1 本、日本語、3〜5 文）。作家が直す前提。下書きの印が残っている間は公開されない（story.js）
 export async function draftStory({ title, messages, note }, apiKey) {
   const system = `あなたは抽象画の作家の代わりに「小さな物語」の下書きを書きます。その絵が誰かの日々の中にあるとき、暮らしにどんな彩りをもたらすかを、小説のような語りで 3〜5 文、日本語で書きます。
 - 説明や宣伝ではなく、情景。朝・夜・帰宅・季節など、生活の一瞬を 1 つ選ぶ。

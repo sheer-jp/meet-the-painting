@@ -674,6 +674,8 @@ export async function compositeRooms({ root, work, paintingPath, outDir }) {
     results.push({
       name, image: outName, base: `rooms/${name}.jpg`, ...(def.category ? { category: def.category } : {}), label: def.label || { ja: name }, wall_width_cm: wallWidthCm,
       image_px: [W, H], quad_px: quad.map(([x, y]) => [Math.round(x), Math.round(y)]),
+      // 終わりの画面で絵と一緒に必ず見せる範囲（比較の相手。roomArt.ts の roomBox）
+      ...(Array.isArray(def.keep_px) ? { keep_px: def.keep_px.map((v) => Math.round(v * scale)) } : {}),
       ...(sc ? { px_per_cm: +pxPerCm.toFixed(3), confidence: sc.confidence || null } : {}),
       occlusion: frontPx > 0,
       // 拡大表示で動かせる範囲（画像の px）：壁の範囲。家具の上端（furniture_top_y_px）より下には下げない（11-07 作家「椅子の手前に絵が来るとおかしい」）。置く場面は受けの幅

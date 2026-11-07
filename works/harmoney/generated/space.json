@@ -135,18 +135,7 @@
       "pt": "É isso, para mim, a harmonia."
     }
   ],
-  "story": {
-    "ja": "朝、カーテンを開けると、この絵の赤がいちばん先に目を覚ます。\n忙しい日は通り過ぎるだけで、それでも帰ってくると、青がまだそこにいる。\nぶつかった色が、夜にはほどけて、ひとつの調和になっている。\n（下書き。作家が自分の言葉に直す）",
-    "en": "In the morning, when the curtains open, the reds in this painting wake up first.\nOn busy days you only pass by, and still, when you come home, the blue is waiting there.\nBy night, the colors that collided have come undone into a single harmony.\n(Draft, to be rewritten by the artist in her own words)",
-    "zh-Hans": "早晨拉开窗帘，这幅画里的红色总是最先醒来。\n忙碌的日子里只是匆匆经过，可回到家时，蓝色仍然在那里。\n相撞的色彩到了夜里慢慢松开，成为一种和谐。\n（草稿，艺术家将用自己的话改写）",
-    "zh-Hant": "早晨拉開窗簾，這幅畫裡的紅色總是最先醒來。\n忙碌的日子裡只是匆匆經過，可回到家時，藍色仍然在那裡。\n相撞的色彩到了夜裡慢慢鬆開，成為一種和諧。\n（草稿，藝術家將用自己的話改寫）",
-    "ko": "아침에 커튼을 열면, 이 그림의 빨강이 가장 먼저 눈을 뜬다.\n바쁜 날엔 그냥 지나칠 뿐이지만, 그래도 돌아오면 파랑이 아직 그곳에 있다.\n부딪힌 색들은 밤이 되면 풀려서, 하나의 조화가 되어 있다.\n(초고. 작가가 자신의 말로 고쳐 씁니다)",
-    "fr": "Le matin, quand on ouvre les rideaux, c'est le rouge de ce tableau qui se réveille en premier.\nLes jours chargés, on ne fait que passer devant, et pourtant, en rentrant, le bleu est toujours là.\nLes couleurs qui se sont heurtées se dénouent la nuit et deviennent une seule harmonie.\n(Brouillon, à réécrire par l'artiste avec ses propres mots)",
-    "de": "Morgens, wenn man die Vorhänge öffnet, wacht das Rot dieses Bildes als Erstes auf.\nAn vollen Tagen geht man nur daran vorbei, und doch: Kommt man nach Hause, ist das Blau noch da.\nDie Farben, die aufeinandergeprallt sind, lösen sich in der Nacht und werden zu einer einzigen Harmonie.\n(Entwurf, wird von der Künstlerin in eigenen Worten neu geschrieben)",
-    "es": "Por la mañana, al abrir las cortinas, el rojo de este cuadro es el primero en despertar.\nLos días ajetreados solo pasas por delante, y aun así, cuando vuelves a casa, el azul sigue ahí.\nLos colores que chocaron se deshacen por la noche y se convierten en una sola armonía.\n(Borrador, la artista lo reescribirá con sus propias palabras)",
-    "it": "Al mattino, quando apri le tende, il rosso di questo quadro è il primo a svegliarsi.\nNei giorni pieni ci passi solo davanti, eppure, quando torni a casa, il blu è ancora lì.\nI colori che si sono scontrati, di notte si sciolgono e diventano un'unica armonia.\n(Bozza, l'artista la riscriverà con parole sue)",
-    "pt": "De manhã, quando abres as cortinas, o vermelho deste quadro é o primeiro a acordar.\nNos dias atarefados limitas-te a passar por ele, e mesmo assim, quando voltas para casa, o azul ainda lá está.\nAs cores que colidiram desfazem-se à noite e tornam-se uma só harmonia.\n(Rascunho, a artista vai reescrever com as suas próprias palavras)"
-  },
+  "story": null,
   "size_label": {
     "ja": "F15 号",
     "en": "F15",
@@ -473,5 +462,5 @@
   ],
   "availability": "available",
   "contact": null,
-  "generated_at": "2026-11-07T16:39:10.489Z"
+  "generated_at": "2026-11-07T18:27:24.309Z"
 }

@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 import { kmeans, toHex, textColor, backColor, brightCenter } from './color.js';
 import { structureTensorFlow, flowToRGB, motionFromFlow, reliefFromGray, toGray8 } from './flow.js';
 import { translateAll } from './translate.js';
+import { publishedStory } from './story.js';
 
 // 文字を白にする絵の明るさの上限（L*）。6 作品：New Chapter 67 だけ墨、ほかは白（docs/EXPERIENCE.md 3 節 T3）
 const TEXT_DARK_LSTAR = 60;
@@ -112,7 +113,10 @@ async function generateWork(id) {
     writeFileSync(storyPath, JSON.stringify(stories, null, 2) + '\n');
     console.log('  小さな物語を下書きした → generated/stories.json（作家が直す）');
   }
-  if (stories.ja) texts.push({ ja: stories.ja, en: stories.en });
+  // 公開するのは作家が確認した物語だけ（work.json の story_approved。DECISIONS 70）。下書きは訳さず、space.json・ページ・カタログ・案内役に渡さない
+  const story = publishedStory(work, stories);
+  if (story) texts.push({ ja: story.ja, en: story.en });
+  else if (stories.ja) console.log('  小さな物語は未確認なので公開しない（確認したら work.json に "story_approved": true）');
   texts.push(...roomTexts);
   // 技法・号数・部屋の場所の名前（E-15）。work.json / rooms/*.json の { ja, en } を 10 言語に。文字列（古い形）は訳さずそのまま
   const isMulti = (v) => v && typeof v === 'object' && typeof v.ja === 'string' && v.ja;
@@ -156,7 +160,7 @@ async function generateWork(id) {
     space: { radius_m: ov.radius_m ?? 2.5, melt_distance_m: ov.melt_distance_m ?? 1.0 },
     audio: { voice: work.audio?.voice && existsSync(join(dir, work.audio.voice)) ? work.audio.voice : null, ambient: work.audio?.ambient || 'calm' },
     messages: messages.map((m, i) => ({ at: at[i], ...tr(m.ja), ja: m.ja, ...(m.en ? { en: m.en } : {}) })),
-    story: stories.ja ? { ...tr(stories.ja), ja: stories.ja } : null,
+    story: story ? { ...tr(story.ja), ja: story.ja } : null,
     size_label: multi(work.size_label || null),
     medium: multi(work.medium || null),
     statement: multi(work.statement || null),   // 作品の一文（この絵の意味と、絵の世界での動き。作家の語りから）

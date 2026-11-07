@@ -5,12 +5,12 @@ import { doorStyle, doorBody } from './door.js';
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const t = (obj, lang) => (obj && (obj[lang] || obj.ja || obj.en)) || '';
 
-const UI_JA = {
-  enter: '絵の世界をのぞく', enter_vr: 'VR でのぞく', enter_note: '色が動き出し、作家の言葉が流れます（約 2 分）', rooms: '部屋で見る', contact: '作家に連絡', share: '共有', others: '他の作品', buy: 'この絵を購入する', buy_tax: '税込', buy_note: '一点ものの原画です。東京から配送します。', buy_ship_jp: '国内：送料は着払いです。発送のときにメールでお知らせします。', buy_ship_intl: '海外：送料が確定したら、Stripe の請求をメールでお送りします。関税や輸入税はお客さまのご負担です。', cg_all: 'ギャラリー全体を見る',   // 11-07 作家「他の作品の下に、ギャラリー全体を見るボタン」
+export const UI_JA = {
+  enter: '絵の世界をのぞく', enter_vr: 'VR でのぞく', enter_note: '色が動き出し、作家の言葉が流れます（約 1 分）', rooms: '部屋で見る', contact: '作家に連絡', share: '共有', others: '他の作品', buy: 'この絵を購入する', buy_tax: '税込', buy_note: '一点ものの原画です。東京から配送します。', buy_ship_jp: '国内：送料は着払いです。発送のときにメールでお知らせします。', buy_ship_intl: '海外：送料が確定したら、Stripe の請求をメールでお送りします。関税や輸入税はお客さまのご負担です。', cg_all: 'ギャラリー全体を見る',   // 11-07 作家「他の作品の下に、ギャラリー全体を見るボタン」
   size: '寸法', medium: '技法', available: '販売中', sold: '売約済み', not_for_sale: '非売',
   room_cat_studio: '一人暮らしの部屋', room_cat_house: '広い家',   // 11-07 FIX-A：玄関・靴箱の部屋にも付くので「リビング」を外す（ui.json は別途）
   rooms_note: '部屋は AI 生成のイメージ。絵は実物の写真。寸法は目安', story_note: '小さな物語', language: '言語', tap_for_size: '画像をタップすると、寸法と詳しい説明。絵をドラッグして、好きな場所に置けます',
-  gallery_title: 'ギャラリー', tagline: '絵の世界に浸る', privacy: '© SHEER',   // 11-07 P-17：フッターは「© SHEER」だけ（計測の断りは public/stats.html と README）
+  gallery_title: 'ギャラリー', privacy: '© SHEER',   // 11-07 P-17：フッターは「© SHEER」だけ（計測の断りは public/stats.html と README）
   statement: '小さな絵の、奥へ。', statement_en: 'Into the depth of a small painting.',
 };
 // Google Fonts（AUDIT-1 P1-3）：Noto Sans JP は 300 / 400 だけ（500 は CSS で使っていない）。Shippori Mincho の 600 は絵の中の文字（.float-text）。
@@ -28,8 +28,8 @@ const asMulti = (v) => typeof v === 'string' ? { ja: v } : v;
 
 // 二言語併記（美術館の作法）：言語設定に関わらず日本語と英語を並べる
 const brand = (prefix) => `<a class="brand" href="${prefix}"><b>SHEER Gallery</b></a>`;   // 11-06 深夜：受付と同じギャラリー名に統一
-// フッター（P-17）：「© SHEER」だけ
-const footer = () => `<footer><span data-i18n="privacy">${UI_JA.privacy}</span></footer>`;
+// フッター（P-17）：「© SHEER」と「記録について」（何を残しているかの説明。docs/ADMIN.md 1 節）
+const footer = (prefix) => `<footer><span data-i18n="privacy">${UI_JA.privacy}</span><a class="foot-data" href="${prefix}data-note.html" data-i18n="fu_data">記録について</a></footer>`;
 const langSel = () => `<label class="lang"><span data-i18n="language">${UI_JA.language}</span> <select id="lang" aria-label="${UI_JA.language}" data-i18n-attr="aria-label:language"></select></label>`;
 
 // ja と en が同じ（または en が無い）なら 1 回だけ。違えば「ja / en」（11-07 作家：「SHEER Gallery / SHEER Gallery」と同じ語を 2 回並べない）
@@ -132,10 +132,10 @@ ${FONTS}
       <p class="buy-note" data-i18n="buy_ship_intl">${UI_JA.buy_ship_intl}</p>
     </div>` : ''}
   </div>
-  ${rooms ? `<section class="rooms"><h2 class="eyebrow"><span>Rooms</span><span data-i18n="rooms">${UI_JA.rooms}</span></h2><div class="strip">${rooms}</div><p class="rooms-hint"><span class="rooms-hint-do" data-i18n="tap_for_size">${UI_JA.tap_for_size}</span><span class="rooms-hint-note" data-i18n="rooms_note">${UI_JA.rooms_note}</span></p></section>` : ''}
+  ${rooms ? `<section class="rooms" id="rooms"><h2 class="eyebrow"><span>Rooms</span><span data-i18n="rooms">${UI_JA.rooms}</span></h2><div class="strip">${rooms}</div><p class="rooms-hint"><span class="rooms-hint-do" data-i18n="tap_for_size">${UI_JA.tap_for_size}</span><span class="rooms-hint-note" data-i18n="rooms_note">${UI_JA.rooms_note}</span></p></section>` : ''}
   ${story}
   ${others ? `<section class="others"><h2 class="eyebrow"><span>Works</span><a class="eyebrow-link" href="../../gallery/" data-i18n="others">${UI_JA.others}</a></h2><div class="strip">${others}</div><p class="others-all"><a class="btn ghost" href="../../gallery/" data-i18n="cg_all">${UI_JA['cg_all'] || 'ギャラリー全体を見る'}</a></p></section>` : ''}
-  ${footer()}
+  ${footer('../../')}
 </main>
 <div id="stage" hidden></div>
 <script type="module" src="../../src/page.ts"></script>
@@ -230,13 +230,13 @@ ${doorBody()}
           ${openers}
         </div>
     </div>
-    <a class="cg-skip" href="gallery/" data-i18n="cg_skip" style="--d:${(0.5 + lines.length * 0.4).toFixed(1)}s">受付を飛ばして、ギャラリー全体を見る</a>
+    <div class="cg-foot" style="--d:${(0.5 + lines.length * 0.4).toFixed(1)}s"><a class="cg-skip" href="gallery/" data-i18n="cg_skip">受付を飛ばして、ギャラリー全体を見る</a><a class="cg-data" href="data-note.html" data-i18n="fu_data">記録について</a></div>
   </section>
   <form class="cg-form" action="#concierge" hidden><input name="q" type="text" maxlength="600" autocomplete="off" enterkeyhint="send" placeholder="こんな気分のときに、こうしたい" aria-label="こんな気分のときに、こうしたい" data-i18n-ph="cg_placeholder"><button type="submit" data-i18n="rec_send">送る</button></form>
   <section class="cg2" tabindex="-1" aria-label="今日のあなたへの 1 点"${i18nAttr('aria-label:cg_card_head')} hidden>
     <div class="cg2-in">
       <div class="cg2-host" aria-hidden="true"></div>
-      <p class="cg2-line">${jaEn(present.ja, present.en)}</p>
+      <p class="cg2-line" aria-live="polite">${jaEn(present.ja, present.en)}</p>
     </div>
   </section>
 </main>
@@ -298,7 +298,7 @@ ${FONTS}
   </div>
   <span class="gw-more" aria-hidden="true">→</span>
   <p class="gw-scroll" data-i18n="gw_scroll">横にスクロール</p>
-  ${footer()}
+  ${footer('../')}
 </main>
 <script type="module" src="../src/page.ts"></script>
 </body>
@@ -314,8 +314,8 @@ export function cardSvg({ work, space, qrSvgInner, url }) {
   <g transform="translate(6 6) scale(${(22 / 100).toFixed(4)})">${qrSvgInner}</g>
   <text x="33" y="12" font-size="4.2" font-weight="bold">${esc(title)}</text>
   <text x="33" y="18" font-size="2.8" fill="#444">${work.size_cm[0]} × ${work.size_cm[1]} cm</text>
-  <text x="33" y="27" font-size="3" fill="#222">この絵の中に入れます</text>
-  <text x="33" y="31.5" font-size="2.6" fill="#666">Enter the painting</text>
+  <text x="33" y="27" font-size="3" fill="#222">この絵の世界をのぞけます</text>
+  <text x="33" y="31.5" font-size="2.6" fill="#666">Step into the painting's world</text>
   <text x="33" y="40" font-size="2.2" fill="#888">${esc(url)}</text>
   <text x="6" y="51" font-size="2" fill="#999">QR を読むか、URL を開いてください。音が出ます（消音でも文字で楽しめます）</text>
 </svg>

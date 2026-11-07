@@ -4,6 +4,10 @@ import { structureTensorFlow, motionFromFlow, reliefFromGray } from '../scripts/
 import { homographyFromUnitSquare, invert3, paintingQuadOnWall, paintingRectFromScale, wallKeyAlpha, restoreForeground, warpOnto, fractionOf, confidenceFrom, scaleFromReferences, roomTexts } from '../scripts/generate/rooms.js';
 import { key } from '../scripts/generate/translate.js';
 import { normalizeLang, pickLang } from '../src/i18n/normalize';
+import { publishedStory } from '../scripts/generate/story.js';
+import { UI_JA } from '../scripts/generate/pages.js';
+import ui from '../src/i18n/ui.json';
+import { readFileSync } from 'node:fs';
 
 describe('主要色', () => {
   it('2 色の画像から 2 色を面積順に取る', () => {
@@ -277,7 +281,55 @@ describe('ギャラリーの大きさの区分（G-1）', async () => {
     expect(six.match(/loading="lazy"/g)).toHaveLength(3);
     expect(six).toContain('<div class="gw-intro" aria-hidden="true">');
   });
-  it('フッターは「© SHEER」だけ（P-17）', () => {
-    expect(html).toContain('<footer><span data-i18n="privacy">© SHEER</span></footer>');
+  it('フッターは「© SHEER」と「記録について」（P-17）', () => {
+    expect(html).toContain('<footer><span data-i18n="privacy">© SHEER</span><a class="foot-data" href="../data-note.html" data-i18n="fu_data">');
+  });
+});
+
+describe('小さな物語の公開（DECISIONS 70）', () => {
+  const ja = '朝、カーテンを開ける。';
+  it('作家の確認の印が無ければ公開しない', () => {
+    expect(publishedStory({}, { ja })).toBeNull();
+    expect(publishedStory({ story_approved: false }, { ja })).toBeNull();
+    expect(publishedStory({ story_approved: 'yes' }, { ja })).toBeNull();
+  });
+  it('印があっても、下書きの印が文に残っていれば公開しない', () => {
+    expect(publishedStory({ story_approved: true }, { ja: `${ja}\n（下書き。作家が自分の言葉に直す）` })).toBeNull();
+  });
+  it('確認済みの文だけ公開する。物語が無ければ null', () => {
+    expect(publishedStory({ story_approved: true }, { ja, en: 'Morning.' })).toEqual({ ja, en: 'Morning.' });
+    expect(publishedStory({ story_approved: true }, {})).toBeNull();
+  });
+});
+
+describe('生成の HTML の固定文と ui.json', () => {
+  it('同じ鍵は同じ文（読み込みの途中で文が変わらない）', () => {
+    for (const [k, v] of Object.entries(UI_JA as Record<string, string>)) {
+      const e = (ui as Record<string, Record<string, string>>)[k];
+      if (e) expect([k, v]).toEqual([k, e.ja]);
+    }
+  });
+  it('使わなくなった旧称が残っていない', () => {
+    const all = JSON.stringify(ui);
+    expect(all).not.toContain('絵の中から戻ってきました');
+    expect((ui as Record<string, unknown>).tagline).toBeUndefined();
+  });
+  it('足した文言は 10 言語そろっている', () => {
+    for (const k of ['exp_load_fail', 'reload', 'rooms_load_fail', 'fu_ai_note', 'fu_need_words', 'cg_enter_fail', 'cg_js_fail', 'copy_fail', 'cg_after_head', 'fu_data']) {
+      expect(Object.keys((ui as Record<string, Record<string, string>>)[k]).sort()).toEqual(['de', 'en', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'zh-Hans', 'zh-Hant']);
+    }
+  });
+});
+
+describe('古い Safari の CSS', () => {
+  const css = ['src/ui/page.css', 'src/concierge/concierge.css', 'src/followup/followup.css'].map((f) => readFileSync(f, 'utf8'));
+  it('dvh は @supports の 1 か所だけ（ほかは --vh100 を使う）', () => {
+    const hits = css.join('\n').split('\n').filter((ln) => /\d+dvh/.test(ln));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]).toContain('@supports (height: 100dvh)');
+    expect(css[0]).toMatch(/--vh100: 100vh;/);
+  });
+  it('overflow: clip の前に hidden', () => {
+    expect(css[0]).toContain('overflow: hidden; overflow: clip;');
   });
 });

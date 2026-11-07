@@ -25,10 +25,11 @@ html.door-on{background:${WALL_COLOR}}
 html.door-on .door{display:block;position:fixed;inset:0;z-index:2147483000;overflow:hidden;background:${WALL_COLOR};cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
   --vh:100vh;--sh:max(var(--vh),calc(100vw/${WALL_ASPECT}));--fb:calc(var(--sh)*${(1 - WALL_FLOOR_Y).toFixed(3)});
   --at:clamp(22px,calc(var(--vh)*.075),66px);--ah:calc(var(--vh) - var(--fb) - var(--at));--aw:min(calc(var(--ah)*${DOOR_RATIO}),calc(100vw - 48px));
-  --ax:calc(50vw - var(--aw)/2);--fs:calc(var(--aw)*${FRAME_SIDE});--ft:calc(var(--ah)*${FRAME_TOP});
+  --cx:50vw;--ax:calc(var(--cx) - var(--aw)/2);--fs:calc(var(--aw)*${FRAME_SIDE});--ft:calc(var(--ah)*${FRAME_TOP});
   animation:door-bail .01s linear ${BAIL_AT}s forwards}
 @supports (height:100dvh){html.door-on .door{--vh:100dvh}}
-.door-rig{position:absolute;inset:0;opacity:0;perspective:calc(var(--vh)*1.7);perspective-origin:50% calc(var(--at) + var(--ah)/2);transform-origin:50% calc(var(--at) + var(--ah)*.32)}
+@media (orientation:landscape) and (max-height:500px){html.door-on .door{--cx:18vw}}
+.door-rig{position:absolute;inset:0;opacity:0;perspective:calc(var(--vh)*1.7);perspective-origin:var(--cx) calc(var(--at) + var(--ah)/2);transform-origin:var(--cx) calc(var(--at) + var(--ah)*.32)}
 .door-leaf{position:absolute;z-index:1;left:var(--ax);top:var(--at);width:var(--aw);height:var(--ah);background:url(${DIR}/leaf.webp) center/100% 100% no-repeat;transform-origin:100% 50%}
 .door-leaf::after{content:"";position:absolute;inset:0;background:#2a1a0c;opacity:0}
 .door-plate{position:absolute;left:8%;top:52%;width:10%;aspect-ratio:186/528;transform:translateY(-50%);background:url(${DIR}/plate.webp) center/100% 100% no-repeat}
@@ -70,7 +71,7 @@ d.addEventListener('click',skip);
 document.addEventListener('keydown',skip);
 d.addEventListener('animationend',function(e){if(e.animationName==='door-pass'&&!over){over=1;clean()}});
 gate=setTimeout(skip,800);
-Promise.all(${JSON.stringify(DOOR_ASSETS)}.map(function(u){var i=new Image();i.src=u;return i.decode()})).then(function(){
+Promise.all(${JSON.stringify(DOOR_ASSETS)}.map(function(u){var i=new Image();i.src=u;return i.decode?i.decode():new Promise(function(a,b){i.onload=a;i.onerror=b})})).then(function(){
 if(over)return;clearTimeout(gate);d.classList.add('door-run');bye=setTimeout(skip,3000)
 },skip);
 })()</script>`;

@@ -21,7 +21,8 @@ function copyWorks(): Plugin {
           for (const f of readdirSync(from)) {
             const p = join(from, f);
             if (statSync(p).isDirectory()) copyDir(p, join(to, f));
-            else if (!/\.(wav|json\.bak)$/.test(f)) copyFileSync(p, join(to, f));
+            // stories.json と translations.json は生成の入力。作家が確認していない物語の下書きが入るので公開しない（DECISIONS 70）
+            else if (!/\.(wav|json\.bak)$/.test(f) && f !== 'stories.json' && f !== 'translations.json') copyFileSync(p, join(to, f));
           }
         };
         copyDir(join(dir, 'generated'), join(dst, id, 'generated'));

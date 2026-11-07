@@ -208,6 +208,12 @@
           349
         ]
       ],
+      "keep_px": [
+        1115,
+        85,
+        1385,
+        770
+      ],
       "px_per_cm": 3.4,
       "confidence": "high",
       "occlusion": false,
@@ -307,6 +313,12 @@
           427
         ]
       ],
+      "keep_px": [
+        1383,
+        112,
+        1586,
+        850
+      ],
       "px_per_cm": 3.625,
       "confidence": "high",
       "occlusion": false,
@@ -369,5 +381,5 @@
   ],
   "availability": null,
   "contact": null,
-  "generated_at": "2026-11-07T16:39:12.542Z"
+  "generated_at": "2026-11-07T18:27:26.433Z"
 }
