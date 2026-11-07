@@ -1,0 +1,10 @@
+# ローカルの D1 に表を作るためだけの設定（docs/ADMIN.md 7 節）。配置には使わない
+name = "enter-the-painting-local"
+pages_build_output_dir = "../dist"
+compatibility_date = "2025-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "meet-the-painting"
+database_id = "local-meet-the-painting"
+migrations_dir = "../migrations"

@@ -2,7 +2,7 @@
 import { LANG_NAMES } from './prompt.js';
 import { REACTIONS, PLACES } from './events.js';
 
-export const LIMITS = { textChars: 300, turns: 2, sendChars: 600, replyChars: 200 };
+export const LIMITS = { textChars: 300, turns: 2, sendChars: 620, replyChars: 200 };
 const REACTION_JA = { love: '好き', curious: '気になる', unsure: 'ちょっと違うかも' };
 const ID_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
 const FID_RE = /^[A-Za-z0-9_-]{16,40}$/;

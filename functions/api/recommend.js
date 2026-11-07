@@ -100,14 +100,15 @@ export async function onRequestOptions({ request, env }) {
   return new Response(null, { status: origin ? 204 : 403, headers: corsHeaders(request, origin) });
 }
 
-export async function onRequestPost({ request, env, waitUntil }) {
-  try { return await handle(request, env, waitUntil); } catch (e) {
+export async function onRequestPost(ctx) {
+  const { request, env } = ctx;
+  try { return await handle(request, env, ctx); } catch (e) {
     console.error('想定外の失敗', String(e));
     return json(502, { error: 'upstream' }, corsHeaders(request, allowedOrigin(request, env)));
   }
 }
 
-async function handle(req, env, waitUntil) {
+async function handle(req, env, ctx) {
   const origin = allowedOrigin(req, env);
   const cors = corsHeaders(req, origin);
   if (!origin) return json(403, { error: 'bad_request' }, cors);
@@ -187,7 +188,7 @@ async function handle(req, env, waitUntil) {
         // どの問いが使われたかを記録（失敗しても、なくても、会話には関係ない）
         try {
           const job = recordAsked(env, { sid: body.sid, lang: body.lang, seed: body.seed || undefined, catalog, text: said }).catch((e) => console.error('問いを記録できない', String(e)));
-          if (typeof waitUntil === 'function') waitUntil(job);
+          if (typeof ctx.waitUntil === 'function') ctx.waitUntil(job);
         } catch { /* 同上 */ }
       }
     },

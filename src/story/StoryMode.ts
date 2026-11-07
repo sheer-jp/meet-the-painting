@@ -552,6 +552,7 @@ export class StoryMode {
     this.band?.classList.add('on');
     if (this.band) this.band.inert = false;
     hud.ending.style.opacity = '1'; hud.ending.style.pointerEvents = 'auto';
+    window.dispatchEvent(new CustomEvent('mtp:story-end', { detail: { base: this.ctx.base } }));   // 感想カード（docs/ADMIN.md 3 節）
     if (this.ctx.fromQr) hud.once.style.opacity = '1';
     if (landed && compare) {
       await wait(1000);

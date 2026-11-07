@@ -1,0 +1,42 @@
+/* 感想カード（docs/ADMIN.md 3 節、docs/DESIGN.md）。白い面に墨。ピル、英語ラベル、縁取りの囲みを使わない。選択肢は細い線で区切った行 */
+.fu {
+  position: fixed; z-index: 60;
+  right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--fu-bottom, 0px) + var(--fu-kb, 0px));
+  width: min(340px, calc(100vw - 24px)); max-height: calc(100dvh - 24px - var(--fu-bottom, 0px) - var(--fu-kb, 0px)); overflow-y: auto; overscroll-behavior: contain;
+  padding: 14px 16px 12px; background: #fff; color: var(--ink); border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(35, 32, 29, .1), 0 10px 26px rgba(35, 32, 29, .14);
+  animation: fu-in .45s ease both; outline: none;
+}
+@keyframes fu-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .fu { animation: none; } }
+.fu-x { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ink-2); font-size: 20px; line-height: 1; cursor: pointer; }
+.fu-x:hover { color: var(--ink); }
+.fu-head { display: flex; align-items: flex-start; gap: 10px; padding-right: 28px; }
+.fu-face { flex: none; width: 44px; height: 44px; border-radius: 50%; object-fit: cover; object-position: 50% 8%; background: var(--bg-2); }
+.fu-say { margin: 0; min-height: 44px; display: block; align-self: center; font-family: var(--serif); font-size: 15px; line-height: 1.7; letter-spacing: .03em; overflow-wrap: anywhere; }
+.fu-ph { display: inline-block; }
+.fu-mine { margin: 10px 0 0 auto; width: fit-content; max-width: 90%; padding: 6px 12px; border-radius: 8px; background: var(--bg-2); font-size: 14px; line-height: 1.7; overflow-wrap: anywhere; }
+.fu-body { margin-top: 8px; }
+.fu-opts { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; }
+.fu-opt { appearance: none; display: block; width: 100%; min-height: 46px; padding: 6px 2px; border: 0; border-top: 1px solid var(--line); background: none; color: var(--ink); font-family: var(--serif); font-size: 15px; line-height: 1.5; letter-spacing: .03em; text-align: left; cursor: pointer; }
+.fu-opt:hover { background: var(--bg-2); }
+.fu-form { display: flex; flex-direction: column; gap: 8px; }
+.fu-area { display: block; box-sizing: border-box; width: 100%; padding: 8px 10px; border: 0; border-radius: 6px; background: var(--bg-2); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.6; resize: vertical; }
+.fu-area:focus-visible { outline: 1px solid var(--ink); outline-offset: 1px; }
+.fu-send { appearance: none; display: block; box-sizing: border-box; width: 100%; min-height: 48px; margin-top: 8px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--ink); color: var(--bg); font-family: var(--sans); font-size: 14px; letter-spacing: .1em; cursor: pointer; }
+.fu-form .fu-send { margin-top: 0; }
+.fu-send:hover { opacity: .92; }
+.fu-send:disabled { opacity: .4; cursor: default; }
+.fu-sub { appearance: none; display: block; width: 100%; min-height: 44px; padding: 6px 2px; border: 0; background: none; color: var(--ink-2); font-family: var(--sans); font-size: 12.5px; letter-spacing: .06em; cursor: pointer; }
+.fu-sub:hover { color: var(--ink); }
+.fu-picked { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--bg-2); font-family: var(--serif); font-size: 15px; }
+.fu-note { margin: 8px 0 0; font-size: 12px; line-height: 1.7; letter-spacing: .03em; color: var(--ink-2); }
+.fu-data { display: inline-block; margin-left: 6px; padding: 2px 0; color: var(--ink-2); text-underline-offset: 3px; }
+.fu-status { margin: 8px 0 0; font-size: 13px; line-height: 1.7; color: var(--ink); }
+.fu-status:empty { display: none; }
+.fu-dots { display: flex; gap: 5px; margin: 6px 0 4px 54px; min-height: 14px; }
+.fu-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink-2); animation: fu-blink 1.6s ease-in-out infinite; }
+.fu-dots i:nth-child(2) { animation-delay: .2s; }
+.fu-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes fu-blink { 0%, 100% { opacity: .2; } 40% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .fu-dots i { animation: none; opacity: .6; } }

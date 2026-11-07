@@ -9,8 +9,10 @@ export async function onRequestGet({ request: req, env }) {
   if (!await dbReady(env)) return adminJson(200, { db: false, items: [], next: null });
   const q = new URL(req.url).searchParams;
   const now = Date.now();
+  // 感想は作家が消すまで残るので、いちばん長い期間（180 日）では全部出す
+  const days = parseDays(q.get('days'));
   const where = ['created_at >= ?'];
-  const args = [now - parseDays(q.get('days')) * 86400_000];
+  const args = [days >= 180 ? 0 : now - days * 86400_000];
   const work = q.get('work');
   if (work && /^[a-z0-9][a-z0-9_-]{0,63}$/.test(work)) { where.push('work_id = ?'); args.push(work); }
   const reaction = q.get('reaction');

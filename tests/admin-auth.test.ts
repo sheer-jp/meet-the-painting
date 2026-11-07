@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest';
 import { verifyGoogleIdToken, signSession, verifySession, adminConfigured, isAllowed, sameOriginWrite, currentAdmin, COOKIE_NAME, sessionCookie, SESSION_MS } from '../functions/_lib/admin-auth.js';
 import { onRequest as guard } from '../functions/api/admin/_middleware.js';
 import { onRequestPost as login } from '../functions/api/admin/login.js';
@@ -189,5 +189,32 @@ describe('login と config', () => {
   });
   it('sameOriginWrite は Origin が無ければ false', () => {
     expect(sameOriginWrite(new Request('https://meet.example.com/x', { method: 'POST' }))).toBe(false);
+  });
+});
+
+describe('login（Google の鍵を偽物に差し替えて）', () => {
+  const env = { GOOGLE_CLIENT_ID: CLIENT, ADMIN_EMAILS: 'owner@example.com', ADMIN_SESSION_SECRET: SECRET };
+  const post = (credential: string, ip: string) => new Request('https://meet.example.com/api/admin/login', { method: 'POST', headers: { Origin: 'https://meet.example.com', 'CF-Connecting-IP': ip }, body: JSON.stringify({ credential }) });
+  const fresh = (c: Record<string, unknown> = {}) => token({ exp: Date.now() / 1000 + 600, ...c });
+  afterEach(() => { vi.restoreAllMocks(); });
+  beforeEach(() => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(JSON.stringify({ keys: [{ ...jwk, kid: 'k1' }] }), { headers: { 'cache-control': 'max-age=60' } }));
+  });
+  it('許可されたメールには Cookie を渡す。その Cookie で門番を通れる', async () => {
+    const r = await login({ request: post(await fresh(), '192.0.2.1'), env });
+    expect(r.status).toBe(200);
+    const set = r.headers.get('Set-Cookie')!;
+    for (const a of ['HttpOnly', 'Secure', 'SameSite=Strict', 'Path=/', COOKIE_NAME]) expect(set).toContain(a);
+    const value = set.split(';')[0];
+    const ctx = { request: new Request('https://meet.example.com/api/admin/me', { headers: { Cookie: value } }), env, data: {} as Record<string, unknown>, next: async () => new Response('{}') };
+    expect((await guard(ctx)).status).toBe(200);
+  });
+  it('許可外のメールは 403、未検証は 401、aud 違いは 401。Cookie を渡さない', async () => {
+    const a = await login({ request: post(await fresh({ email: 'stranger@example.com' }), '192.0.2.2'), env });
+    expect(a.status).toBe(403); expect(a.headers.get('Set-Cookie')).toBeNull();
+    const b = await login({ request: post(await fresh({ email_verified: false }), '192.0.2.3'), env });
+    expect(b.status).toBe(401); expect(b.headers.get('Set-Cookie')).toBeNull();
+    const c = await login({ request: post(await fresh({ aud: 'other' }), '192.0.2.4'), env });
+    expect(c.status).toBe(401); expect(c.headers.get('Set-Cookie')).toBeNull();
   });
 });

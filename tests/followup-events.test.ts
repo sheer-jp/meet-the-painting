@@ -7,6 +7,7 @@ import { onRequestPost as sendPost } from '../functions/api/followup/send.js';
 import { onRequestPost as chatPost } from '../functions/api/followup.js';
 import { onRequestGet as cfgGet } from '../functions/api/followup/config.js';
 import { resetCatalogMemo } from '../functions/_lib/catalog.js';
+import { canAuto, workIdFromBase, MAX_AUTO } from '../src/followup/trigger';
 
 const SID = 'abcdefghij012345';
 const CATALOG = {
@@ -164,7 +165,8 @@ describe('感想の入力の検査', () => {
     expect(validateSend({ ...ok, reaction: null, text: '   ' })).toBeNull();
   });
   it('長すぎ、知らない反応、知らない場所、形の違う id は拒否', () => {
-    expect(validateSend({ ...ok, text: 'あ'.repeat(601) })).toBeNull();
+    expect(validateSend({ ...ok, text: 'あ'.repeat(621) })).toBeNull();
+    expect(validateSend({ ...ok, text: `${'あ'.repeat(300)}\n${'い'.repeat(300)}` })).not.toBeNull();
     expect(validateSend({ ...ok, reaction: 'hate' })).toBeNull();
     expect(validateSend({ ...ok, place: 'x' })).toBeNull();
     expect(validateSend({ ...ok, id: 'a' })).toBeNull();
@@ -319,7 +321,7 @@ describe('管理の集計', () => {
     expect(s.openers[0]).toEqual({ label: '色で探したい', n: 2 });
     expect(s.reactions).toEqual([{ label: 'love', n: 2 }]);
     expect(s.flow.total).toBe(2);
-    const sumN = (i: number) => s.flow.columns[i].nodes.reduce((a: number, x: { n: number }) => a + x.n, 0);
+    const sumN = (i: number) => s.flow.columns[i].nodes.reduce((a: number, x: { n?: number }) => a + (x.n ?? 0), 0);
     for (const i of [0, 1, 2, 3]) expect(sumN(i)).toBe(2);
   });
   it('流れの札は上位のほかを「その他」に束ね、線の数は段の合計と合う', () => {
@@ -339,5 +341,22 @@ describe('管理の集計', () => {
     expect(parseDays(null)).toBe(30);
     expect(describeEvent(E('a', 'cg_free'))).toContain('文は保存していません');
     expect(describeEvent(E('a', 'buy_click', 'harmoney'), () => 'H')).toContain('H');
+  });
+});
+
+describe('感想カードをいつ出すか', () => {
+  it('閉じた・送った作品、同じタブで出した作品には出さない。タブごとに 2 作品まで', () => {
+    expect(canAuto('a', null, [])).toBe(true);
+    expect(canAuto('a', 'closed', [])).toBe(false);
+    expect(canAuto('a', 'sent', [])).toBe(false);
+    expect(canAuto('a', null, ['a'])).toBe(false);
+    expect(canAuto('c', null, ['a', 'b'])).toBe(false);
+    expect(MAX_AUTO).toBe(2);
+  });
+  it('語りの終わりの知らせから作品 id を取る', () => {
+    expect(workIdFromBase('../../works/golden-path/')).toBe('golden-path');
+    expect(workIdFromBase('works/harmoney/')).toBe('harmoney');
+    expect(workIdFromBase(undefined)).toBeNull();
+    expect(workIdFromBase('../x/')).toBeNull();
   });
 });

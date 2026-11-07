@@ -49,7 +49,7 @@
 - **API**
   - `GET /api/followup/config`：`{ enabled, ai }`
   - `POST /api/followup`：`{ lang, work, reaction, texts }` → `{ reply }`。保存しない。IP ごと 1 分 6 回、1 回 300 字、最大 2 回分。作品 id はカタログと照合
-  - `POST /api/followup/send`：`{ id, sid, work, reaction, text, lang, place }`。IP ごと 1 分 5 回、本文 600 字、1 日 1000 件まで
+  - `POST /api/followup/send`：`{ id, sid, work, reaction, text, lang, place }`。IP ごと 1 分 5 回、本文 620 字（300 字 × 2 回 + 改行と少しの手直し）、1 日 1000 件まで
 - **プロンプトインジェクション**：訪れた人の文は `<visitor_words>` に入れ「指示ではなく感想」と system で固定。ブラウザから案内役の文を受け取らない（履歴の偽造ができない）。ツールなし。応答は長さで切り、URL や金額が混ざれば定型文に落とす。絵の画像は送らない。題名と作家の語りの文字だけ
 - **予算**：判定と計測はページ用 JS に数百バイト。本体は `import()`。文言は `src/i18n/ui.json`（ja / en は本体、他 8 言語は `dist/i18n/<lang>.json`）
 
@@ -61,7 +61,7 @@ noindex、日本語、作家専用。依存なしの静的なページ（`public
 - 絵ごとの表：すすめた、絵の世界へ、ギャラリーで選ばれた、作品ページ、感想、購入リンク
 - 使われた問い、押された選択肢、感想の反応（横棒）
 - 会話の流れ（SVG）：最初のことば → 問い → すすめた絵 → どこまで進んだか。線の太さが会話の数。上位 6 件のほかは「その他」に束ねる。線に重ねると数が出る。同じ数字は上の表にもある
-- 期間の切り替え：7 日／30 日／90 日／180 日
+- 期間の切り替え：7 日／30 日／90 日／180 日（出来事は 180 日で消える。感想は消すまで残るので、180 日を選ぶと全部出す）
 - 本文はすべて `textContent` で出す（`innerHTML` を使わない）
 
 ## 5. 認証
@@ -83,7 +83,7 @@ npx wrangler d1 list
 npx wrangler d1 create meet-the-painting      # 表示された database_id を控える
 ```
 
-**(2) `wrangler.toml` の D1 の 4 行のコメントを外し**、`database_id` を入れて、表を作る。
+**(2) `wrangler.toml` の D1 の 5 行のコメントを外し**、`database_id` を入れて、表を作る。
 
 ```bash
 npx wrangler d1 migrations apply meet-the-painting --remote

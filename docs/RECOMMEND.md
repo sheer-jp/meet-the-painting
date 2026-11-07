@@ -28,7 +28,7 @@
 いまの規則は「実行時に外部 API を呼ばない」。この機能はチャットなので実行時に呼ぶ必要があり、**この機能だけの例外**として `CLAUDE.md` に書く。API キーはブラウザに置けないので、小さなサーバーを 1 つ置く。
 
 - **Cloudflare Workers**（作家のドメインが Cloudflare にあるので同じ場所に）。`https://enter.sheerarts.com/api/recommend` にルーティング。キーは Worker の Secret
-- Worker は Claude API の Messages をストリーミングで中継し、会話の履歴はブラウザ側が持つ（サーバーに保存しない）
+- Worker は Claude API の Messages をストリーミングで中継し、会話の履歴はブラウザ側が持つ（文はサーバーに保存しない。問いがストックのどれだったかだけを残す。`docs/ADMIN.md`）
 - モデル：`claude-sonnet-5-5`（既定。11-05 作家の方針「開発中はリーズナブルなモデルから」。1 会話 4 往復で 3 円ほど）。接客の質を上げたければ `claude-opus-5-5`（約 2 倍）。`CLAUDE_MODEL` で切り替え
 - 拒否（安全分類）や失敗時は、ルールだけのおすすめ（後述）に落ちる
 
@@ -65,10 +65,10 @@
 
 ## 5. 計測・プライバシー
 
-- 送るのは会話文だけ。名前・連絡先は聞かない（system で禁止）。会話は保存しない
+- 送るのは会話文だけ。名前・連絡先は聞かない（system で禁止）。会話の文は保存しない（押した選択肢などの構造化した出来事だけを残す。`docs/ADMIN.md`）
 - 計測：`recommend_start`、`recommend_done`、`enter_via_recommend`、`contact_via_recommend`（Cookie なし）
 - 作品ページに「このおすすめは AI が作家の言葉をもとに選んだもの」と 1 行
-- 11-06：KV の数だけ。個人は追わない（E-14。`POST /api/stat` が出来事の回数を KV `STATS` に +1。IP・名前・会話の文・Cookie は保存しない）
+- 11-06：KV の数（E-14。11-08 からは D1 に、匿名 id でつないだ構造化した出来事も残す。`docs/ADMIN.md`。KV については次のとおり。`POST /api/stat` が出来事の回数を KV `STATS` に +1。IP・名前・会話の文・Cookie は保存しない）
 - 11-06：作家だけが `/stats.html?key=<STATS_KEY>`（`GET /api/stats`）で累計と直近 30 日を見る。鍵が無い・違えば 404
 
 ## 6. 作業の見積もり

@@ -7,7 +7,7 @@ export { quadRect, clampOffset, type Rect } from './roomArt';   // テストと�
 
 export interface LightboxSpace { size_cm: [number, number]; size_label?: Multi | null; rooms: Room[] }
 // srcs：合成画像（帯と同じ）。bases：素の部屋の URL（room.base。無ければ null）。painting：絵の写真の URL（painting_1024.jpg）
-export interface LightboxOptions { space: LightboxSpace; srcs: string[]; bases?: (string | null)[]; painting?: string; index: number; lang: Lang; returnFocus?: HTMLElement | null }
+export interface LightboxOptions { space: LightboxSpace; srcs: string[]; bases?: (string | null)[]; painting?: string; index: number; lang: Lang; returnFocus?: HTMLElement | null; onClose?: () => void }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MAX_ZOOM = 2;
@@ -298,6 +298,7 @@ export function openLightbox(o: LightboxOptions): () => void {
     document.documentElement.style.overflow = prevOverflow;
     root.remove();
     o.returnFocus?.focus();
+    o.onClose?.();
   }
 
   document.body.appendChild(root);

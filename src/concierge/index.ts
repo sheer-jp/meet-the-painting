@@ -1,6 +1,6 @@
 // 受付（docs/ENTRANCE.md 3 節）。上にキャラクター、下に会話。おすすめの 1 点は別の画面（C2）に 3 段で出す（3.5）
 // 見出し・キャラクター・最初の 2 文・選択肢・入力欄・C2 の枠は HTML にあり（pages.js）、ここは会話を動かすだけ
-// 会話はこのタブのメモリにだけ持ち、どこにも保存しない。保存するのは合言葉（通ったときだけ）と、直前のおすすめ（sessionStorage）
+// 会話の文はこのタブのメモリにだけ持ち、どこにも保存しない。ブラウザに残すのは合言葉（通ったときだけ）と、直前のおすすめ（sessionStorage）。押した選択肢などの出来事は page.ts が送る（docs/ADMIN.md）
 import { t, pick, applyLang, titlePair, onLangLoaded, type Lang } from '../i18n';
 import { recommendByRules, targetAxes, axisDistance, pickMoods, buildReason, type Answers, type Catalog, type CatalogWork } from '../recommend/rules';
 import { splitRecommendation, resolveRecommendation, parseRecommendEvent, reasonText, type RecJson } from '../recommend/parse';
@@ -745,7 +745,7 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     try {
       const headers: Record<string, string> = { 'content-type': 'application/json' };
       if (usedPass) headers['X-Passphrase'] = usedPass;
-      const res = await fetch(opts.api!, { method: 'POST', headers, body: JSON.stringify({ lang, messages, seed }), signal: ctrl.signal });
+      const res = await fetch(opts.api!, { method: 'POST', headers, body: JSON.stringify({ lang, messages, seed, sid: session.get('mtp.sid') }), signal: ctrl.signal });
       if (res.status === 403) {
         const e = await res.json().catch(() => null) as { error?: string } | null;
         // 違う合言葉は覚えない（覚えていたものも消す）
