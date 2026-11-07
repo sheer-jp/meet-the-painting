@@ -62,9 +62,8 @@ const i18nAttr = (spec, vars) => ` data-i18n-attr="${spec}"${vars ? ` data-i18n-
 export const roomAlt = (title, label) => `${title}（${label}）AI 生成の部屋のイメージ`;   // 11-07 FIX-B：ui.json の room_alt（ja）と同じ形。「〜てに置いた」の文の組み立てをやめ、場所の札をそのまま括弧に
 // 小さく出す絵（「他の作品」の帯、ギャラリー）：480 と 1024 を出し分ける（AUDIT-1 P1-5）。作品ページの主役の絵は 1024 のまま
 const smallSrcset = (dir) => `${dir}painting_480.jpg 480w, ${dir}painting_1024.jpg 1024w`;
-// ギャラリーの絵の表示幅：スマホ（< 768px）は 1 列で全幅、PC は横一列（実寸比）。PC の幅は CSS（page.css の .gw-item）の上限
-// min(62vh, 560px) / maxh × wcm を px の目安にする（REVIEW-2 P2：560px 固定では PC で 480px の絵が一度も選ばれなかった）
-const gwSizes = (wcm, maxH) => `(max-width: 767.98px) calc(100vw - 32px), ${Math.max(72, Math.ceil(560 / maxH * wcm))}px`;
+// ギャラリーの絵の表示幅：スマホ（< 768px）は 1 列でほぼ全幅、PC は展示室の壁に実寸比（いちばん高い絵が画面の高さの 52%。page.css の --hang-h と同じ）
+const gwSizes = (wcm, maxH) => `(max-width: 767.98px) calc(100vw - 40px), max(72px, calc(52vh * ${+(wcm / maxH).toFixed(3)}))`;
 // 「他の作品」の帯：高さ 132px の正方形に object-fit: cover。横長の絵は 132 × 縦横比 の幅が要る（REVIEW-2 P2）
 const otherSizes = (sizeCm) => `${Math.ceil(132 * Math.max(1, (sizeCm?.[0] || 1) / (sizeCm?.[1] || 1)))}px`;
 
@@ -262,18 +261,15 @@ export function galleryWallPage({ works: input, baseUrl }) {
   const counts = { all: works.length, s: 0, m: 0, l: 0 };
   works.forEach((w) => counts[sizeClass(longSide(w.size_cm))]++);
   const chips = SIZE_CHIPS.map(([k, ja, key]) => `<button type="button" class="gw-chip" data-size="${k}" data-i18n="${key}" aria-pressed="${k === 'all'}"${counts[k] ? '' : ' disabled'}>${ja}</button>`).join('');
-  const maxW = Math.max(...works.map((w) => w.size_cm[0]), 1);
   const maxH = Math.max(...works.map((w) => w.size_cm[1]), 1);
-  // P-4：PC は一列が必ず収まるように、全作品の幅 cm の合計と点数を CSS に渡す
-  const sumW = works.reduce((a, w) => a + w.size_cm[0], 0) || 1;
-  const items = works.map((w) => {
+  const items = works.map((w, i) => {
     const [cw, ch] = w.size_cm;
     const title = t(w.title, 'ja');
     const titleEn = t(w.title, 'en');
     return `
-    <a class="gw-item" data-id="${esc(w.id)}" data-size="${sizeClass(longSide(w.size_cm))}" data-long="${longSide(w.size_cm)}" href="../w/${esc(w.id)}/?via=gallery" style="--wcm:${cw};--hcm:${ch};--rel:${(cw / maxW).toFixed(3)}">
+    <a class="gw-item" data-id="${esc(w.id)}" data-size="${sizeClass(longSide(w.size_cm))}" data-long="${longSide(w.size_cm)}" href="../w/${esc(w.id)}/?via=gallery" style="--wcm:${cw};--hcm:${ch}">
       <span class="gw-foryou" data-i18n="gw_for_you" hidden>あなたへの 1 点</span>
-      <img src="../works/${esc(w.id)}/generated/painting_1024.jpg" srcset="${smallSrcset(`../works/${esc(w.id)}/generated/`)}" sizes="${gwSizes(cw, maxH)}" alt="" loading="lazy" width="${Math.round(cw * 10)}" height="${Math.round(ch * 10)}" style="aspect-ratio:${cw}/${ch}">
+      <img src="../works/${esc(w.id)}/generated/painting_1024.jpg" srcset="${smallSrcset(`../works/${esc(w.id)}/generated/`)}" sizes="${gwSizes(cw, maxH)}" alt="" ${i < 3 ? 'fetchpriority="high"' : 'loading="lazy"'} width="${Math.round(cw * 10)}" height="${Math.round(ch * 10)}" style="aspect-ratio:${cw}/${ch}">
       <span class="gw-cap" data-title-ja="${esc(title)}" data-title-en="${esc(titleEn)}"><b class="t-main">${esc(title)}</b>${titleEn && titleEn !== title ? `<i class="t-sub latin">${esc(titleEn)}</i>` : '<i class="t-sub" hidden></i>'}<span>${fLabel(w.size_label) ? `${fLabel(w.size_label)} ・ ` : ''}${cw} × ${ch} cm</span></span>
     </a>`;
   }).join('') + ``;
@@ -297,7 +293,8 @@ ${FONTS}
     ${langSel()}
   </div>
   <div class="gw-filter" role="group" aria-label="大きさで絞り込む"${i18nAttr('aria-label:gw_filter_label')}>${chips}</div>
-  <div class="gw-wall" style="--maxh:${maxH};--sumcm:${+sumW.toFixed(2)};--n:${works.length}" tabindex="0" aria-label="作品"${i18nAttr('aria-label:gw_works_label')}>${items}
+  <div class="gw-wall" style="--maxh:${maxH}" tabindex="0" aria-label="作品"${i18nAttr('aria-label:gw_works_label')}>
+    <div class="gw-intro" aria-hidden="true"><b class="latin">SHEER Gallery</b><span>絵と出会う</span><i class="latin">Meet the Painting</i></div>${items}
   </div>
   <span class="gw-more" aria-hidden="true">→</span>
   <p class="gw-scroll" data-i18n="gw_scroll">横にスクロール</p>

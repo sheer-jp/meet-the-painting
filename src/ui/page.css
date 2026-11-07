@@ -281,66 +281,123 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 }
 @media (prefers-reduced-motion: reduce) { .cg { transition: none; } .cg-face { transition: none; } .cg-faces { animation: none; } .cg-greet, .cg-skip { animation: none; } }
 
-/* ギャラリー（G）：白い壁。PC は横に長い 1 枚の壁（スクロール）、スマホは縦に並べる */
-main.gw { min-height: 100dvh; display: flex; flex-direction: column; padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left)); }
-.gw-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; max-width: 1180px; width: 100%; margin: 0 auto; }
-.gw-back { font-size: 12px; letter-spacing: .14em; color: var(--ink-2); min-height: 44px; display: inline-flex; align-items: center; }
+/* ギャラリー（G）：美術館の展示室（docs/DESIGN.md「ギャラリー」、11-08 作家）。HTML は 1 つ、壁の画像と並べ方を CSS で PC とスマホに分ける。
+   部屋（壁・床・天井・レール）は .gw-wall の背景、光だまりと影は絵ごとに持つ（絵の位置は画面幅と絞り込みで変わるので、画像に焼き込まない） */
+body.paper:has(.gw) { background: #f2f2f2; }
+main.gw { position: relative; }
+.gw-back { font-size: 12px; letter-spacing: .14em; color: var(--ink-2); min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; }
 .gw-back::before { content: "←"; margin-right: .6em; }
 .gw-back:hover { color: var(--ink); }
 .gw-title { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 15px; letter-spacing: .2em; display: flex; gap: .8em; align-items: baseline; }
 .gw-title .latin { font-family: var(--latin); font-style: italic; font-weight: 300; font-size: 13px; letter-spacing: .08em; color: var(--ink-2); }
-.gw-wall {
-  --gap: clamp(32px, 4vw, 72px);
-  position: relative; flex: 1; display: flex; align-items: center; gap: var(--gap);
-  overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; scrollbar-width: thin;
-  padding: 40px max(4vw, 32px) 64px; margin: 0 calc(-1 * max(16px, env(safe-area-inset-left)));
-  background: linear-gradient(to bottom, transparent calc(100% - 28px), var(--line) calc(100% - 28px), var(--line) calc(100% - 27px), transparent calc(100% - 27px));   /* 床線 1 本 */
-}
-.gw-wall:focus-visible { outline-offset: -4px; }
-/* P-4：一列が必ず収まる。1 cm あたりの長さ = min(（壁の幅 − 間隔の合計）÷ 幅 cm の合計, 壁の縦 min(62vh, 560px) ÷ いちばん高い絵の cm)。
-   最小 72px を下回る幅（〜1000px）では 72px に止まり、壁は横スクロールになる（page.ts が .is-scroll を付けて「→」と 1 行を出す） */
-.gw-item { position: relative; flex: none; display: flex; flex-direction: column; scroll-snap-align: center; color: var(--ink-2); width: max(72px, calc(var(--wcm) * min((100% - (var(--n) - 1) * var(--gap)) / var(--sumcm), min(62vh, 560px) / var(--maxh)))); transition: transform .6s cubic-bezier(.2,.7,.3,1); }
-.gw-item:hover { transform: translateY(-4px); }
-.gw-item img { display: block; width: 100%; height: auto; box-shadow: 0 1px 2px rgba(35, 32, 29, .18), 0 14px 30px rgba(35, 32, 29, .14); background: var(--bg-2); }
-.gw-cap { display: block; margin-top: 14px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 11px; letter-spacing: .12em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }   /* 小さな絵の幅で折り返す（隣にはみ出さない） */
-.gw-cap b { display: block; font-family: var(--serif); font-weight: 400; font-size: 14px; letter-spacing: .1em; color: var(--ink); }
-.gw-cap i { display: block; font-size: 12px; font-style: normal; font-family: var(--serif); letter-spacing: .1em; }
-.gw-cap i.latin { font-family: var(--latin); font-weight: 300; font-style: italic; letter-spacing: .06em; }
+.gw-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.gw-top select { border-bottom-color: transparent; }
+.gw-wall:focus-visible { outline-offset: -6px; }
+.gw-item { position: relative; display: block; color: var(--ink-2); transition: opacity .35s ease; }
+.gw-item img { position: relative; display: block; width: 100%; height: auto; background: #e6e6e4; }
+/* 壁に掛かっている影：画布の縁に沿う細い影と、上からの光で下へ落ちる淡い影 */
+.gw-item img { box-shadow: 0 1px 1px rgba(30, 28, 26, .22), 0 3px 6px rgba(30, 28, 26, .10), 2px 14px 22px -6px rgba(30, 28, 26, .20), 3px 30px 46px -18px rgba(30, 28, 26, .16); }
+/* スポットの光だまり：絵の少し上に中心がある楕円。.gw-wall の isolation の中で、壁の上・絵の下 */
+.gw-item::before { content: ""; position: absolute; z-index: -1; pointer-events: none; transition: opacity .35s ease; background: radial-gradient(closest-side, rgba(255, 255, 255, .98), rgba(255, 255, 255, .82) 42%, rgba(255, 255, 255, .28) 74%, rgba(255, 255, 255, 0)); }
+/* 壁のキャプション：小さく、線も枠もなし */
+.gw-cap { display: block; font-size: 10.5px; line-height: 1.7; letter-spacing: .1em; font-variant-numeric: tabular-nums; word-break: keep-all; }
+.gw-cap > * { display: block; }
+.gw-cap b { font-family: var(--serif); font-weight: 400; font-size: 13.5px; line-height: 1.5; letter-spacing: .1em; color: var(--ink); }
+.gw-cap i { font-size: 11.5px; font-style: normal; font-family: var(--serif); letter-spacing: .08em; }
+.gw-cap i.latin { font-family: var(--latin); font-weight: 400; font-style: italic; font-size: 13px; letter-spacing: .04em; }
 .gw-cap b.latin, .other b.latin { font-family: var(--latin); font-weight: 400; letter-spacing: .04em; }
-.gw-foryou { position: absolute; bottom: calc(100% + 12px); left: 0; font-size: 11px; letter-spacing: .2em; color: var(--ink); white-space: nowrap; }
-/* おすすめの 1 点：ほんの少し明るい（背後の光） */
-.gw-item.is-for-you::before { content: ""; position: absolute; inset: -38% -42% -20%; z-index: -1; background: radial-gradient(closest-side, rgba(255, 255, 255, .95), rgba(255, 255, 255, 0)); pointer-events: none; }
-/* G-1：大きさの絞り込み（見出しの下、チップ 4 つ）。高さ 36px、墨 1px の枠、選択中は墨で塗る */
-.gw-filter { display: flex; flex-wrap: wrap; gap: 8px; max-width: 1180px; width: 100%; margin: 12px auto 0; }
-.gw-chip { appearance: none; min-height: 36px; padding: 0 16px; border: 1px solid var(--ink); border-radius: 18px; background: #fff; color: var(--ink); font: 400 12px/1.3 var(--sans); letter-spacing: .12em; cursor: pointer; transition: background .2s, color .2s; }
-.gw-chip:hover { background: var(--bg-2); }
-.gw-chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
-.gw-chip:disabled { opacity: .35; cursor: default; background: #fff; color: var(--ink); }
-/* 該当しない作品は薄く。壁の並びと実寸比はそのまま（詰めない。大きさの比較が崩れるため） */
-.gw-item { transition: transform .6s cubic-bezier(.2,.7,.3,1), opacity .3s ease; }
-.gw[data-size="s"] .gw-item:not([data-size="s"]), .gw[data-size="m"] .gw-item:not([data-size="m"]), .gw[data-size="l"] .gw-item:not([data-size="l"]) { opacity: .25; pointer-events: none; }
-.gw footer { max-width: 1180px; width: 100%; margin: 24px auto 16px; }
-/* P-4：横スクロールのときだけ、右端に「→」の薄い印と「横にスクロール」の 1 行 */
-main.gw { position: relative; }
+.gw-cap b.latin { font-size: 16px; line-height: 1.3; }
+.gw-cap > span { margin-top: 5px; }
+/* 売れた印：画廊の赤い丸（ご予約は輪）。枠は付けない */
+.gw-cap .sold-tag { display: flex; align-items: center; gap: .6em; margin-top: 5px; padding: 0; border: 0; border-radius: 0; font-size: 10.5px; letter-spacing: .1em; color: var(--ink); }
+.gw-cap .sold-tag::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #b3261e; }
+.gw-cap .sold-tag[data-i18n="reserved_tag"]::before { background: none; box-shadow: inset 0 0 0 1px #b3261e; }
+.gw-foryou { position: absolute; bottom: calc(100% + 14px); left: 0; font-size: 11px; letter-spacing: .2em; color: var(--ink); white-space: nowrap; }
+/* G-1：大きさの絞り込み。枠も塗りもない文字で、選んでいるものに細い下線 */
+.gw-filter { display: flex; gap: 2px; }
+.gw-chip { appearance: none; position: relative; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 400 12px/1.3 var(--sans); letter-spacing: .1em; cursor: pointer; transition: color .2s; white-space: nowrap; }
+.gw-chip::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 9px; height: 1px; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
+.gw-chip:hover { color: var(--ink); }
+.gw-chip[aria-pressed="true"] { color: var(--ink); }
+.gw-chip[aria-pressed="true"]::after { transform: scaleX(1); }
+.gw-chip:disabled { opacity: .35; cursor: default; color: var(--ink-2); }
 .gw-more, .gw-scroll { display: none; }
-.gw.is-scroll .gw-more { display: block; position: absolute; right: max(12px, env(safe-area-inset-right)); top: 50%; font-family: var(--latin); font-size: 28px; font-weight: 300; color: var(--ink-2); opacity: .45; pointer-events: none; }
-.gw.is-scroll .gw-scroll { display: block; max-width: 1180px; width: 100%; margin: -40px auto 0; text-align: right; font-size: 11px; letter-spacing: .14em; color: var(--ink-2); }
+
+/* PC：横に続く壁を、歩きながら見る */
+@media (min-width: 768px) {
+  /* 画像の中の位置（高さに対する割合）：レール 8.3〜9.9%、巾木の上 83.3%、床 85%。絵の中心は目の高さ 46% */
+  main.gw { --room-h: max(100dvh, 560px); --gap: clamp(214px, 13vw + 60px, 330px); height: var(--room-h); overflow: hidden; padding: 0; }
+  .gw-wall {
+    --hang-h: calc(var(--room-h) * .52);   /* いちばん高い絵の高さ（gwSizes の 52vh と同じ） */
+    --cm: calc(var(--hang-h) / var(--maxh));   /* 1 cm の長さ。全作品で同じなので実寸の比のまま */
+    position: absolute; inset: 0; isolation: isolate;
+    display: flex; align-items: center;
+    padding: 0 max(10vw, 96px) calc(var(--room-h) * .08) 0;   /* 下の余白で中心を目の高さ 46% に */
+    overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; scrollbar-color: rgba(20, 18, 16, .22) transparent;
+    /* 上の層は細いレール（下に淡い影）。下の層は画像が来るまでの部屋（グラデーションだけ。JS が無くてもこのまま成立する）。絵を待たせないよう、壁の画像は最初の絵のあとに読む（.has-wall） */
+    --rail: linear-gradient(to bottom, transparent 8.72%, #303030 8.72%, #141414 8.84%, #0d0d0d 9.34%, rgba(20, 18, 16, .16) 9.34%, transparent 10%);
+    background:
+      var(--rail) 0 0 / 100% 100% no-repeat local,
+      linear-gradient(to bottom, #e8e8e6 0, #efefed 9%, #fcfcfc 10%, #f4f4f4 30%, #eeeeee 60%, #ececec 83.2%, #f4f4f4 83.3%, #efefef 84.9%, #bdbcba 85%, #d8d7d5 85.5%, #cfcecd 100%) 0 0 / 100% 100% no-repeat local;
+  }
+  .gw.has-wall .gw-wall { background: var(--rail) 0 0 / 100% 100% no-repeat local, #eeeeee url("./gallery/wall-pc.webp") 0 0 / auto 100% repeat-x local; }   /* 生成した壁と床（横に継ぎ目なく続く） */
+  .gw-wall::after { content: ""; flex: none; width: 1px; order: 99; }
+  .gw-intro { order: -1; flex: none; width: clamp(340px, 30vw, 560px); padding-left: clamp(40px, 6vw, 110px); color: #2a2826; }
+  .gw-intro > * { display: block; }
+  .gw-intro b { font-family: var(--latin); font-weight: 300; font-size: clamp(36px, 3.6vw, 62px); line-height: 1.08; letter-spacing: .01em; }
+  .gw-intro span { margin-top: 1.5em; font-family: var(--serif); font-size: clamp(14px, 1.05vw, 17px); letter-spacing: .28em; }
+  .gw-intro i { margin-top: .35em; font-family: var(--latin); font-size: clamp(15px, 1.1vw, 18px); font-weight: 400; letter-spacing: .03em; color: var(--ink-2); }
+  .gw-item { --own-gap: var(--gap); flex: none; width: calc(var(--wcm) * var(--cm)); margin-right: var(--own-gap); }
+  .gw-item[data-size="s"] { --own-gap: calc(var(--gap) * .78); }   /* 小さな絵は少し寄せて掛ける */
+  .gw-item::before { --pw: calc(var(--wcm) * var(--cm)); --ph: calc(var(--hcm) * var(--cm)); left: calc(var(--pw) * -.42 - 70px); right: calc(var(--pw) * -.42 - 70px); top: max(calc(var(--ph) * -.52 - 72px), calc(50% - var(--room-h) * .35)); bottom: calc(var(--ph) * -.3 - 40px); }   /* 上はレールを越えない（光でレールが白くならない） */
+  /* レールから下がる小さなスポット：絵の真上。top はレールの高さ（絵の中心からの距離で求める） */
+  .gw-item::after { content: ""; position: absolute; left: 50%; top: calc(50% - var(--room-h) * .46 + var(--room-h) * .0925); height: calc(var(--room-h) * .032); aspect-ratio: 16 / 30; transform: translateX(-50%); pointer-events: none; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 30'%3E%3Cdefs%3E%3ClinearGradient id='a' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23141414'/%3E%3Cstop offset='.42' stop-color='%234a4a4a'/%3E%3Cstop offset='1' stop-color='%23101010'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='7.2' width='1.6' height='10' fill='%231a1a1a'/%3E%3Crect x='3.5' y='9' width='9' height='19' rx='1' fill='url(%23a)'/%3E%3Cellipse cx='8' cy='28.2' rx='4.5' ry='1' fill='%23fffdf8' opacity='.9'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .gw-item:hover img, .gw-item:focus-visible img { box-shadow: 0 1px 1px rgba(30, 28, 26, .24), 0 4px 8px rgba(30, 28, 26, .12), 3px 18px 28px -6px rgba(30, 28, 26, .24), 4px 38px 56px -18px rgba(30, 28, 26, .18); }
+  .gw-item img { transition: box-shadow .5s ease; }
+  /* 題名は絵の右下、キャプションの札の位置 */
+  .gw-cap { position: absolute; left: calc(100% + 24px); bottom: 0; width: calc(var(--own-gap) - 44px); }
+  /* 該当しない作品は薄く。光も一緒に落ちる。壁の並びと実寸比はそのまま */
+  .gw[data-size="s"] .gw-item:not([data-size="s"]), .gw[data-size="m"] .gw-item:not([data-size="m"]), .gw[data-size="l"] .gw-item:not([data-size="l"]) { opacity: .25; pointer-events: none; }
+  /* 見出しの帯（レールの上の天井）：言語と戻るは端に、絞り込みは真ん中に */
+  .gw-top { position: absolute; z-index: 3; top: max(0px, calc(var(--room-h) * .083 - 48px)); left: 0; right: 0; height: 44px; padding: 0 clamp(24px, 3vw, 48px); pointer-events: none; }
+  .gw-top > * { pointer-events: auto; }
+  .gw-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* 見出しは壁の文字（.gw-intro）で見せる。読み上げ用に残す */
+  .gw-filter { position: absolute; z-index: 3; top: max(0px, calc(var(--room-h) * .083 - 48px)); left: 50%; transform: translateX(-50%); }
+  .gw footer { position: absolute; z-index: 3; left: clamp(24px, 3vw, 48px); bottom: 14px; margin: 0; padding: 0; border: 0; pointer-events: none; color: #55524d; }
+  /* 横に続くしるし。端まで歩いたら消える（page.ts の .is-end） */
+  .gw.is-scroll .gw-more { display: block; position: absolute; z-index: 3; right: clamp(24px, 3vw, 48px); bottom: 12px; font-family: var(--latin); font-size: 20px; font-weight: 300; line-height: 1; color: #55524d; pointer-events: none; transition: opacity .4s ease; }
+  .gw.is-scroll .gw-scroll { display: block; position: absolute; z-index: 3; right: calc(clamp(24px, 3vw, 48px) + 30px); bottom: 14px; margin: 0; font-size: 11px; letter-spacing: .14em; color: #55524d; pointer-events: none; transition: opacity .4s ease; }
+  .gw.is-end .gw-more, .gw.is-end .gw-scroll { opacity: 0; }
+}
+/* 縦長の画面（タブレット）は横幅が足りないので、絞り込みを見出しの下の行へ */
+@media (min-width: 768px) and (max-width: 1099.98px) {
+  .gw-filter { left: clamp(12px, 2vw, 36px); transform: none; top: calc(max(0px, var(--room-h) * .083 - 48px) + var(--room-h) * .09); }
+}
+
+/* スマホ：縦に見る。絵は幅いっぱい寄りのまま、壁と光と床の気配だけ（画像は天井の帯と床の帯。真ん中は同じ色 #f2f2f2 につながる） */
 @media (max-width: 767.98px) {
-  .gw-wall { flex-direction: column; align-items: center; overflow: visible; gap: 64px; padding: 56px 0 72px; margin: 0; background: none; }
-  .gw-item { width: 100%; scroll-snap-align: none; }   /* スマホは柄を見せる：全部幅いっぱい（11-06 深夜、作家）。実寸比は PC だけ */
-  .gw-cap { white-space: normal; }
+  main.gw { min-height: 100dvh; display: flex; flex-direction: column; padding: 0; background: #f2f2f2; overflow: clip; isolation: isolate; }
+  main.gw::before { content: ""; position: absolute; z-index: -1; top: 0; left: 0; right: 0; height: 36.9vw; background: linear-gradient(to bottom, #e4e4e2 0, #e4e4e2 7vw, #f2f2f2 36.9vw); }   /* 画像が来るまでの天井 */
+  .gw.has-wall::before { background: url("./gallery/wall-sp.webp") 0 0 / 100% auto no-repeat; }   /* 画像の上の帯：天井とレール */
+  .gw-top { position: relative; padding: calc(9vw + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left)); }
   .gw-title .latin, .gw-top .lang > span { display: none; }
-  .gw-back { white-space: nowrap; }
-  .gw.is-scroll .gw-more, .gw.is-scroll .gw-scroll { display: none; }
-  /* P-10：最初の作品の下に 1 回だけ「絵をタップすると、絵の中に入れます」。?from= で先頭が入れ替わっても order で最初の作品の下 */
-  .gw-item:first-child { order: -2; }
+  html:not([lang="ja"]) .gw-title span:first-child { display: none; }
+  html:not([lang="ja"]) .gw-title .latin { display: inline; font-size: 16px; color: var(--ink); }   /* 日本語以外は Gallery を見出しに */
+  .gw-intro { display: none; }
+  .gw-filter { justify-content: center; flex-wrap: wrap; padding: 0 8px; margin-top: -2px; gap: 0; }
+  .gw-chip { padding: 0 9px; font-size: 11px; letter-spacing: .06em; }
+  .gw-chip::after { left: 9px; right: 9px; }
+  .gw-wall { position: relative; isolation: isolate; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 92px; padding: 56px 20px 40px; }
+  .gw-item { width: 100%; }
+  .gw-item::before { left: -24%; right: -24%; top: -64px; bottom: 12%; }
+  .gw-cap { margin-top: 18px; }
   /* G-1：スマホは選んだものだけを縦に */
   .gw[data-size="s"] .gw-item:not([data-size="s"]), .gw[data-size="m"] .gw-item:not([data-size="m"]), .gw[data-size="l"] .gw-item:not([data-size="l"]) { display: none; }
-  .gw[data-size] .gw-item:first-child { order: 0; }
-  .gw-filter { justify-content: center; gap: 5px; flex-wrap: nowrap; }
-  .gw-chip { padding: 0 10px; font-size: 11px; letter-spacing: .06em; white-space: nowrap; }
+  /* 床：ページの終わりに、同じ画像の下の帯 */
+  .gw footer { display: flex; align-items: flex-end; height: calc(56.3vw + env(safe-area-inset-bottom)); margin: 0; padding: 0 16px calc(14px + env(safe-area-inset-bottom)); border: 0; background: linear-gradient(to bottom, #f2f2f2 24.6vw, #b9b8b6 24.7vw, #d6d5d3 25.2vw, #cfcecd); color: #55524d; }
+  .gw.has-wall footer { background: url("./gallery/wall-sp.webp") 0 100% / 100% auto no-repeat; }   /* 画像の下の帯：壁の下と床 */
 }
-@media (prefers-reduced-motion: reduce) { .gw-item { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .gw-item, .gw-item::before, .gw-item img, .gw-chip, .gw-chip::after, .gw-more, .gw-scroll { transition: none; } }
 
 /* 作品ページ：受付から来たとき（?via=concierge）の細い帯。絵の下・「入る」の上 */
 .via-band { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 16px; margin: 0 0 -14px; padding: 4px 0; border-bottom: 1px solid var(--line); font-family: var(--serif); font-size: 13px; letter-spacing: .16em; color: var(--ink); }

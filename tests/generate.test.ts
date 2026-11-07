@@ -271,6 +271,12 @@ describe('ギャラリーの大きさの区分（G-1）', async () => {
     expect(onlySmall).toMatch(/data-size="l"[^>]*disabled/);
     expect(onlySmall).not.toMatch(/data-size="s"[^>]*disabled/);
   });
+  it('最初の絵は遅延せず先に読み、壁の文字は読み上げない（11-08 展示室）', () => {
+    const six = galleryWallPage({ works: Array.from({ length: 6 }, (_, i) => ({ id: `w${i}`, title: { ja: `w${i}` }, size_cm: [18 + i, 14] })), baseUrl: 'https://example.com' });
+    expect(six.match(/fetchpriority="high"/g)).toHaveLength(3);
+    expect(six.match(/loading="lazy"/g)).toHaveLength(3);
+    expect(six).toContain('<div class="gw-intro" aria-hidden="true">');
+  });
   it('フッターは「© SHEER」だけ（P-17）', () => {
     expect(html).toContain('<footer><span data-i18n="privacy">© SHEER</span></footer>');
   });
