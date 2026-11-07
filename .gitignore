@@ -1,4 +1,5 @@
-node_modules/
+# worktree では node_modules が symlink のことがあるので、末尾の / を付けない
+node_modules
 dist/
 .env
 .env.*
@@ -10,8 +11,10 @@ dist/
 works/*/generated/*.tmp
 # ビルドの中間物
 .vite/
-w/*/index.html
-index.html
+# 生成物の HTML（ルートの受付、ギャラリー、作品ページ）だけを無視する。public/admin/index.html などの手書きの HTML は追跡する
+/w/*/index.html
+/index.html
+/gallery/index.html
 # Cloudflare Pages Functions（気分から絵をすすめる。functions/）。wrangler の作業フォルダと手元の Secret
 .wrangler/
 .dev.vars

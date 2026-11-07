@@ -96,3 +96,7 @@ details.all summary { min-height: 44px; display: flex; align-items: center; curs
   .fb img { width: 44px; height: 44px; }
   .bars-grid { grid-template-columns: minmax(0, 1fr); }
 }
+.fb-pick { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; color: var(--ink-2); font-size: 12.5px; cursor: pointer; }
+.fb-bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 0 16px; margin: 0 0 8px; }
+.fb-bulk[hidden] { display: none; }
+.fb-bulk .warn { color: var(--ink); font-size: 12.5px; }

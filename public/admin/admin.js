@@ -48,11 +48,7 @@ function showLogin(config, error) {
     h('p', { text: '作家専用のページです。登録したメールアドレスの Google アカウントでログインしてください。' }),
     btn, err));
   const fail = (m) => { err.textContent = m; err.hidden = false; };
-  const script = document.createElement('script');
-  script.src = 'https://accounts.google.com/gsi/client';
-  script.async = true;
-  script.onerror = () => fail('Google のログインを読み込めませんでした。時間をおいて開き直してください。');
-  script.onload = () => {
+  const render = () => {
     window.google.accounts.id.initialize({
       client_id: config.clientId,
       auto_select: false,
@@ -68,7 +64,18 @@ function showLogin(config, error) {
     });
     window.google.accounts.id.renderButton(btn, { theme: 'outline', size: 'large', text: 'signin_with', locale: 'ja', shape: 'rectangular' });
   };
-  document.head.append(script);
+  // Google のスクリプトは 1 回だけ足す（期限切れでログインに戻ったときに重ねない）
+  if (window.google?.accounts?.id) { render(); return; }
+  const GIS = 'https://accounts.google.com/gsi/client';
+  let script = document.querySelector(`script[src="${GIS}"]`);
+  if (!script) {
+    script = document.createElement('script');
+    script.src = GIS;
+    script.async = true;
+    document.head.append(script);
+  }
+  script.addEventListener('error', () => fail('Google のログインを読み込めませんでした。時間をおいて開き直してください。'), { once: true });
+  script.addEventListener('load', render, { once: true });
 }
 
 async function boot() {
@@ -77,7 +84,15 @@ async function boot() {
     showDashboard(me.email);
   } catch (e) {
     let config = null;
-    try { config = await api('/api/admin/config'); } catch { /* 下で閉じる */ }
+    try { config = await api('/api/admin/config'); } catch {
+      // サーバーの不調を「設定がまだ」と言わない
+      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
+      return;
+    }
+    if (e?.status === 503 && e?.message !== 'not_configured' && config?.configured) {
+      app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { role: 'alert', text: 'いまサーバーから読み込めません。時間をおいて開き直してください。' }), h('button', { type: 'button', class: 'text-btn', text: 'もう一度読み込む', onclick: () => void boot() })));
+      return;
+    }
     if (!config?.configured) {
       app.replaceChildren(h('div', { class: 'login' }, h('h1', { text: '絵と出会う 管理' }), h('p', { text: '管理ページの設定がまだ終わっていないので、いまは誰も入れません。手順はリポジトリの docs/ADMIN.md 6 節にあります。' })));
       return;
@@ -117,10 +132,14 @@ function showDashboard(email) {
 
   const unauthorized = async () => { const c = await api('/api/admin/config').catch(() => null); if (c?.configured) showLogin(c, 'ログインの期限が切れました。もう一度ログインしてください。'); };
 
+  // 期間を続けて切り替えたとき、古い応答で上書きしない
+  let loadSeq = 0, fbSeq = 0;
   async function load() {
+    const my = ++loadSeq;
     kpis.replaceChildren(h('p', { class: 'msg', text: '読み込んでいます' }));
     try {
       const d = await api(`/api/admin/summary?days=${state.days}`);
+      if (my !== loadSeq) return;
       state.works = d.catalog || [];
       state.titles = new Map(state.works.map((w) => [w.id, w.title]));
       state.images = new Map(state.works.map((w) => [w.id, w.image]));
@@ -134,6 +153,7 @@ function showDashboard(email) {
       renderFlow(d.flow);
       await loadFeedback();
     } catch (e) {
+      if (my !== loadSeq) return;
       if (e instanceof Unauthorized) return unauthorized();
       kpis.replaceChildren(h('p', { class: 'notice', role: 'alert', text: '読み込めませんでした。時間をおいて開き直してください。' }));
     }
@@ -157,23 +177,62 @@ function showDashboard(email) {
     if (state.work) q.set('work', state.work);
     if (state.reaction) q.set('reaction', state.reaction);
     if (before) q.set('before', before);
+    const my = ++fbSeq;
     try {
       const d = await api(`/api/admin/feedback?${q}`);
+      if (my !== fbSeq) return;
       renderFeedback(d, !!before);
     } catch (e) {
+      if (my !== fbSeq) return;
       if (e instanceof Unauthorized) return unauthorized();
       fbBox.replaceChildren(h('p', { class: 'notice', role: 'alert', text: '感想を読み込めませんでした。' }));
     }
   }
   function renderFeedback(d, append) {
-    if (!append) fbBox.replaceChildren();
+    if (!append) { fbBox.replaceChildren(); selected.clear(); }
     fbBox.querySelector('.more')?.remove();
+    fbBox.querySelector('.fb-bulk')?.remove();
     if (!d.items.length && !append) {
       fbBox.append(h('p', { class: 'empty', text: state.work || state.reaction ? 'この条件の感想はありません。' : 'この期間に届いた感想はまだありません。' }));
       return;
     }
+    fbBox.prepend(bulkBar());
+    updateBulk();
     fbBox.append(...d.items.map(feedbackItem));
     if (d.next) fbBox.append(h('button', { type: 'button', class: 'more', text: 'もっと見る', onclick: () => loadFeedback(d.next) }));
+  }
+  // 選んでまとめて消す（荒らしの片付け）。消す前に件数を見せて確かめる
+  const selected = new Map();   // id → 感想の要素
+  const bulkMsg = h('span', { class: 'warn' });
+  const bulkBtn = h('button', { type: 'button', class: 'text-btn', text: '選んだ感想を消す', onclick: () => confirmBulk() });
+  const bulkBox = h('div', { class: 'fb-bulk' }, bulkMsg, bulkBtn);
+  const bulkBar = () => bulkBox;
+  function updateBulk() {
+    bulkBox.hidden = selected.size === 0;
+    bulkMsg.textContent = selected.size ? `${selected.size} 件を選んでいます` : '';
+    bulkBox.replaceChildren(bulkMsg, bulkBtn);
+  }
+  function confirmBulk() {
+    const n = selected.size;
+    bulkMsg.textContent = `${n} 件を消します。元に戻せません。`;
+    const sure = h('button', { type: 'button', class: 'text-btn danger', text: '消す', onclick: async () => {
+      sure.disabled = true;
+      let failed = 0;
+      for (const [id, box] of [...selected]) {
+        try {
+          await api(`/api/admin/feedback/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          box.remove(); selected.delete(id);
+        } catch (e) {
+          if (e instanceof Unauthorized) return unauthorized();
+          failed++;
+        }
+      }
+      updateBulk();
+      if (failed) { bulkMsg.textContent = `${failed} 件を消せませんでした。`; bulkBox.hidden = false; }
+      void refreshAfterDelete();
+    } });
+    bulkBox.replaceChildren(bulkMsg, sure, h('button', { type: 'button', class: 'text-btn', text: 'やめる', onclick: updateBulk }));
+    sure.focus();
   }
   function feedbackItem(it) {
     const title = state.titles.get(it.work_id) || it.work_id;
@@ -186,7 +245,9 @@ function showDashboard(email) {
         h('span', { text: LANGS[it.lang] || it.lang }), h('span', { text: PLACES[it.place] || it.place })),
       it.body ? h('p', { class: 'fb-body', text: it.body }) : h('p', { class: 'fb-body none', text: '（文はなし。反応だけ）' }),
       actions);
+    const pick = h('input', { type: 'checkbox', 'aria-label': '消す感想に選ぶ', onchange: () => { if (pick.checked) selected.set(it.id, box); else selected.delete(it.id); updateBulk(); } });
     const normal = () => actions.replaceChildren(
+      h('label', { class: 'fb-pick' }, pick, '選ぶ'),
       it.sid ? h('button', { type: 'button', class: 'text-btn', text: 'この人の流れを見る', onclick: (e) => toggleJourney(box, it.sid, e.currentTarget) }) : '',
       h('button', { type: 'button', class: 'text-btn', text: '削除', onclick: confirmDelete }),
     );
@@ -196,6 +257,7 @@ function showDashboard(email) {
         try {
           await api(`/api/admin/feedback/${encodeURIComponent(it.id)}`, { method: 'DELETE' });
           box.remove();
+          selected.delete(it.id); updateBulk();
           void refreshAfterDelete();
         } catch (e) {
           if (e instanceof Unauthorized) return unauthorized();
