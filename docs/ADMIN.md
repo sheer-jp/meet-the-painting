@@ -108,8 +108,9 @@ openssl rand -base64 48 | npx wrangler pages secret put ADMIN_SESSION_SECRET --p
 ```bash
 cp .dev.vars.example .dev.vars    # テスト用の値。.dev.vars はコミットされない
 npm run generate && npm run build
-npx wrangler d1 migrations apply meet-the-painting --local --config tests/wrangler.local.toml
-npx wrangler pages dev dist --d1 DB=local-meet-the-painting --port 8788
+npx wrangler d1 migrations apply meet-the-painting --local --config tests/wrangler.local.toml --persist-to .wrangler/state
+npx wrangler pages dev dist --d1 DB=local-meet-the-painting --persist-to .wrangler/state --port 8788
+NODE_PATH=<playwright の場所> node tests/admin-e2e.mjs --shots <dir>    # 別の端末で。音は出さない
 ```
 
 ローカルでは Google のログインを通さず、`.dev.vars` のテスト用の秘密で署名した Cookie を Playwright が入れる（`tests/admin-e2e.mjs`）。コードに抜け道は無い。

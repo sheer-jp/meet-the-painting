@@ -6,7 +6,7 @@ CREATE TABLE feedback (
   reaction TEXT,                  -- love / curious / unsure / null
   body TEXT,                      -- 訪れた人が「作家に届ける」を押した文
   lang TEXT NOT NULL,
-  place TEXT NOT NULL,            -- story_end / work_page / after / rooms / dwell / link
+  place TEXT NOT NULL,            -- story_end / after / exit / rooms / dwell / link
   sid TEXT                        -- タブごとの匿名 id。流れとつなぐだけ
 );
 CREATE INDEX idx_feedback_created ON feedback(created_at DESC);

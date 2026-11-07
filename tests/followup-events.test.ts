@@ -8,6 +8,7 @@ import { onRequestPost as chatPost } from '../functions/api/followup.js';
 import { onRequestGet as cfgGet } from '../functions/api/followup/config.js';
 import { resetCatalogMemo } from '../functions/_lib/catalog.js';
 import { canAuto, workIdFromBase, MAX_AUTO } from '../src/followup/trigger';
+import { onRequestPost as recommendPost } from '../functions/api/recommend.js';
 
 const SID = 'abcdefghij012345';
 const CATALOG = {
@@ -358,5 +359,50 @@ describe('感想カードをいつ出すか', () => {
     expect(workIdFromBase('works/harmoney/')).toBe('harmoney');
     expect(workIdFromBase(undefined)).toBeNull();
     expect(workIdFromBase('../x/')).toBeNull();
+  });
+});
+
+describe('/api/recommend：応答が流れたあと、問いの照合だけを記録する', () => {
+  const sseOf = (text: string) => [
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(0, 5) } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: text.slice(5) } },
+    { type: 'message_stop' },
+  ].map((e) => `data: ${JSON.stringify(e)}\n\n`).join('');
+  async function run(text: string, sid: string | undefined) {
+    const db = fakeDb();
+    const up = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => String(url).includes('anthropic') ? new Response(sseOf(text), { status: 200 }) : new Response('{}', { status: 404 }));
+    const jobs: Promise<unknown>[] = [];
+    const request = new Request('https://m.example.com/api/recommend', { method: 'POST', headers: { Origin: 'https://m.example.com', 'CF-Connecting-IP': `203.0.113.${Math.floor(Math.random() * 250)}` }, body: JSON.stringify({ lang: 'ja', seed: 'abc', sid, messages: [{ role: 'user', content: '山田です。疲れた' }] }) });
+    const res = await recommendPost({ request, env: { DB: db, ANTHROPIC_API_KEY: 'k', ASSETS: assets }, waitUntil: (p: Promise<unknown>) => { jobs.push(p); } });
+    const out = await res.text();   // 流れ切るまで読む
+    await Promise.all(jobs);
+    const sent = JSON.parse(String((up.mock.calls.find(([u]) => String(u).includes('anthropic'))![1] as RequestInit).body));
+    up.mockRestore();
+    return { res, out, db, sent };
+  }
+  it('文はそのまま届き、出来事にはストックの問いだけが残る。匿名 id は Claude に渡さない', async () => {
+    const { res, out, db, sent } = await run('疲れたんだね、山田さん。\n今日はどんな一日だった？', SID);
+    expect(res.status).toBe(200);
+    expect(out).toContain('done');
+    const ins = db.calls.filter((c) => c.sql.startsWith('INSERT INTO events'));
+    expect(ins).toHaveLength(1);
+    expect(ins[0].args).toEqual(expect.arrayContaining([SID, 'cg_question', '今日はどんな一日だった？']));
+    expect(JSON.stringify(db.calls)).not.toContain('山田');
+    expect(JSON.stringify(sent)).not.toContain(SID);
+  });
+  it('遠い問いは「その他の問い」。文を残さない', async () => {
+    const { db } = await run('山田さんの猫のミケちゃんは元気にしてる？', SID);
+    expect(db.calls[0].args).toContain(OTHER_QUESTION);
+    expect(JSON.stringify(db.calls)).not.toContain('ミケ');
+  });
+  it('匿名 id が無ければ書かない。保存に失敗しても応答は届く', async () => {
+    const a = await run('今日はどんな一日だった？', undefined);
+    expect(a.db.calls).toHaveLength(0);
+    const up = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => String(url).includes('anthropic') ? new Response(sseOf('今日はどんな一日だった？'), { status: 200 }) : new Response('{}', { status: 404 }));
+    const request = new Request('https://m.example.com/api/recommend', { method: 'POST', headers: { Origin: 'https://m.example.com', 'CF-Connecting-IP': '203.0.113.251' }, body: JSON.stringify({ lang: 'ja', seed: 'abc', sid: SID, messages: [{ role: 'user', content: 'x' }] }) });
+    const res = await recommendPost({ request, env: { DB: fakeDb({ fail: true }), ANTHROPIC_API_KEY: 'k', ASSETS: assets } });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('done');
+    up.mockRestore();
   });
 });
