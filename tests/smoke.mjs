@@ -387,7 +387,7 @@ async function doorCase() {
   const open = async (opts = {}, setup) => { const ctx = await browser.newContext({ locale: 'ja', viewport: { width: 390, height: 844 }, ...opts }); const page = await ctx.newPage(); if (setup) await setup(page); return { ctx, page }; };
   const gone = (page, timeout) => page.waitForFunction(() => !document.getElementById('door') && !document.documentElement.classList.contains('door-on'), null, { timeout, polling: 50 });
   try {
-    { // 1 回目は出て、2.5 秒以内に消える。2 回目（再読み込み）は出ない
+    { // 1 回目は出て、3 秒以内に消える（扉 2.55 秒 + 余裕）。2 回目（再読み込み）は出ない
       const { ctx, page } = await open();
       const errors = collectErrors(page);
       await page.goto(url, { waitUntil: 'commit' });
@@ -396,7 +396,7 @@ async function doorCase() {
       check(await page.locator('#door').getAttribute('aria-hidden') === 'true', '扉：aria-hidden');
       await gone(page, 4000);
       const took = Date.now() - t0;
-      check(took <= 2500, `扉：${took}ms で終わり、DOM から消える`);
+      check(took <= 3000, `扉：${took}ms で終わり、DOM から消える`);
       check(await page.evaluate(() => document.activeElement === document.body), '扉：フォーカスを奪わない');
       await page.click('.cg-openers .cg-write', { timeout: 2000 });
       check(await page.locator('.cg-form input').isVisible(), '扉のあと：受付を操作できる');
@@ -450,7 +450,7 @@ async function doorCase() {
       await ctx.close();
     }
     { // スクリプトが途中で止まっても、CSS だけで見えなくなり、受付を押せる（タイマーと画像の完了を止めて確かめる）
-      const { ctx, page } = await open({}, (p) => p.addInitScript(() => { const st = window.setTimeout; window.setTimeout = (f, d, ...a) => (d === 800 || d === 3000 ? 0 : st(f, d, ...a)); Image.prototype.decode = () => new Promise(() => {}); }));
+      const { ctx, page } = await open({}, (p) => p.addInitScript(() => { const st = window.setTimeout; window.setTimeout = (f, d, ...a) => (d === 800 || d === 3400 ? 0 : st(f, d, ...a)); Image.prototype.decode = () => new Promise(() => {}); }));
       await page.goto(url, { waitUntil: 'load' });
       check(await page.locator('#door').count() === 1, '扉：止まったスクリプトの確認（まだ DOM にある）');
       await page.waitForFunction(() => getComputedStyle(document.getElementById('door')).visibility === 'hidden', null, { timeout: 6000 });
