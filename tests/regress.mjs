@@ -413,6 +413,48 @@ export async function runRegress({ base, kinds = ['chromium', 'webkit'], shots =
       await shot(page, `${kind}-22-after`);
       await done();
     }
+
+    // #23 polish-pro（11-08）：プロユースの磨き込みで直した不具合
+    if (want(23)) {
+      // 320px：言語の選択欄が 44px（WebKit は appearance を外さないと 21px）、ヘッダーの「SHEER Gallery」が 1 行、メタ行の行頭に区切りが見えない、横のはみ出しが無い
+      const { page, done } = await open(kind, 320, 568, '/w/itadaki/');
+      const o = await page.evaluate(() => {
+        // 行頭の項目は区切りごと見える範囲（親の内側）の左の外から始まり、行の途中の項目は前の項目に重ならない（区切りが見える）
+        const meta = document.querySelector('.meta'); const par = meta.parentElement;
+        const cl = par.getBoundingClientRect().left + parseFloat(getComputedStyle(par).paddingLeft);
+        const kids = [...meta.children]; let leadOk = kids.length > 1;
+        kids.forEach((k, i) => { const r = k.getBoundingClientRect(); const lead = i === 0 || r.top > kids[i - 1].getBoundingClientRect().top + 2; if (lead ? r.left > cl - 4 : r.left < kids[i - 1].getBoundingClientRect().right - 1) leadOk = false; });
+        return { sel: document.querySelector('#lang').getBoundingClientRect().height, brand: document.querySelector('.brand b').getBoundingClientRect().height, leadOk, ox: document.documentElement.scrollWidth - innerWidth };
+      });
+      check(o.sel >= 44 && o.brand < 24 && o.leadOk && o.ox <= 0, T(`#23 320px の作品ページ：言語 ${Math.round(o.sel)}px、ヘッダー 1 行（${Math.round(o.brand)}px）、メタ行の行頭に区切りなし ${o.leadOk}、はみ出し ${o.ox}`));
+      await page.goto(base + '/gallery/', { waitUntil: 'load' });
+      const gt = await page.locator('.gw-title').evaluate((el) => el.getBoundingClientRect().height);
+      check(gt < 34, T(`#23 320px のギャラリーの見出しが 1 行（${Math.round(gt)}px。「ギャラリ／ー」にならない）`));
+      await done();
+      // 絵の世界の入り：白い地に黒い四角が出ない（流体の表示が紙白から立ち上がる）。入って 0.25 秒の絵の中心が暗くない
+      const e = await open(kind, 420, 800, '/w/new-chapter/');
+      await e.page.click('#enter');
+      await e.page.waitForSelector('#stage canvas', { timeout: 15000 });
+      await e.page.waitForTimeout(250);
+      const W = 420, H = 800;
+      const px = await sharp(await e.page.screenshot({ clip: { x: W / 2 - 20, y: H / 2 - 20, width: 40, height: 40 } })).stats();
+      const lum = px.channels.slice(0, 3).reduce((a, c) => a + c.mean, 0) / 3;
+      check(lum > 110, T(`#23 絵の世界の入りが黒から始まらない（0.25 秒の中心の明るさ ${Math.round(lum)}）`));
+      await e.page.keyboard.press('Escape');
+      await e.page.waitForSelector('#stage', { state: 'hidden', timeout: 5000 });
+      await e.page.waitForTimeout(400);
+      check(await e.page.evaluate(() => document.querySelectorAll('.stage-veil').length === 0 && document.elementFromPoint(innerWidth / 2, 60)?.closest('#stage') == null), T('#23 体験を閉じたあと、白い幕（.stage-veil）が残らない'));
+      await e.done();
+      // 感想カードの退場：閉じるとすぐ .fu は無くなり（操作もできない）、0.4 秒後には幕も残らない
+      const f = await open(kind, 390, 844, '/w/harmoney/?via=concierge&after=1', { fu: { enabled: true, ai: false } });
+      await f.page.waitForSelector('.fu', { timeout: 6000 });
+      await f.page.locator('.fu-x').click();
+      const mid = await f.page.evaluate(() => ({ fu: document.querySelectorAll('.fu').length, ghost: document.querySelectorAll('.fu-ghost').length }));
+      await f.page.waitForTimeout(400);
+      const end = await f.page.evaluate(() => document.querySelectorAll('.fu, .fu-ghost').length);
+      check(mid.fu === 0 && end === 0, T(`#23 感想カードを閉じると .fu はすぐ無くなり、退場のあと何も残らない（退場中 ${mid.ghost}、0.4 秒後 ${end}）`));
+      await f.done();
+    }
   }
   for (const b of Object.values(browsers)) await b.close();
 }
