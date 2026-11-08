@@ -75,6 +75,15 @@ noindex、日本語、作家専用。依存なしの静的なページ（`public
 - **空のとき**：データが無い節は、何が無いかを一文で出す（「この期間に受付で話した人はいません。」など）
 - 本文はすべて `textContent` で出す（`innerHTML` を使わない）。棒の幅は CSSOM（`el.style.width`）か SVG の属性で入れる（CSP は `style-src 'self'`）
 
+### タブ（11-08、docs/REGISTER.md 13 節）
+
+上端の下に「ダッシュボード」「作品を登録」「作品の一覧」のタブ（`role=tablist`、左右の矢印でも移れる。URL は `#register`・`#works`）。「作品を登録」と「作品の一覧」は開いたときに `public/admin/register.js` を `import()` で読む（ダッシュボードだけを見るときは読まない）。
+
+- **作品を登録**：左に会話、右に確認カード（900px 未満は会話の下にカード）。写真を選ぶ → その場で長辺 2000px に縮める・90° 回せる → 「この写真で始める」。聞き役が 1 つずつ聞き、項目が埋まるたびにカードが育つ。カードは作品ページの見え方、展示用キャプションの見え方、題名・年・寸法・画材・値段、「支払いリンクを作ります（○○円）」、作品の id（URL。上に「この URL になります」の枠。英語の題名が無ければ読み方のローマ字）、想いの文（下書きを直して「これでいい」）、気分の言葉（押して選ぶ）、部屋で見るの部屋（自動。押して選び直す）。項目ごとの「直す」で会話がその問いに戻る。全部そろうと「公開する」が押せ（PC はカードの中身だけが流れ、「公開する」の帯はカードの下端に固定。スマホはカードの最後）、金額を見せて確かめたうえで queued にし「公開の準備ができました（R2 のコマンドで公開します）」を出す。書きかけの下書きは次に開くと続きから（会話の文は残らない）
+- **作品の一覧**：下書きと公開の待ち（状態、更新した時刻、足りない項目の数、開く、捨てる＝確認つきで写真ごと消す）と、公開中の作品（カタログ）。公開中の作品を直すのは R5
+- R2（WORK_UPLOADS）か表（migrations/0004）が無いと、どちらのタブも「登録はまだ使えません」と理由を出す。ダッシュボードはそのまま
+- 文はすべて `textContent`。写真は `/api/admin/works/<id>/photo`（同じ origin）から出すので CSP（`img-src 'self'`）は変えていない。選んだ写真の下見は canvas に描く
+
 ### API（`functions/api/admin/`、集計は `functions/_lib/admin-data.js` の純関数）
 
 - `GET /api/admin/summary?range=today|7|30|all`（以前の `?days=7|30|90|180` も読み替える。90・180 は全期間）→ `{ db, range, bounds, catalog, totals, works, openers, questions, reactions, langs, flow, series, hours, funnel, prev, truncated }`
@@ -93,7 +102,7 @@ noindex、日本語、作家専用。依存なしの静的なページ（`public
 1. `/admin/` の ID とパスワードの欄（`autocomplete="username"`、`current-password`。Enter で送れる。送信中は二度押しできない）→ `POST /api/admin/login`
 2. サーバーが確かめる：`Origin` が同じ。ID を定数時間で比べ、パスワードを PBKDF2-SHA256（`ADMIN_PASSWORD_HASH` の `pbkdf2$<回数>$<salt>$<hash>`。回数は Workers の上限 100,000 まで）で比べる。**ID が違っても同じだけ PBKDF2 を回し**、応答も区別しない（401 と「ID かパスワードが違います」だけ）
 3. 通れば `__Host-mtp_admin` Cookie（HMAC 署名、HttpOnly、Secure、SameSite=Strict、24 時間）
-4. `functions/api/admin/_middleware.js` が `/api/admin/*` を既定で拒否。`config` と `login` だけが例外。毎回 Cookie の署名、期限、いまの ID と同じかを見直す。書き込みは `Origin` と `Sec-Fetch-Site` も見る
+4. `functions/api/admin/_middleware.js` が `/api/admin/*` を既定で拒否。`config` と `login` だけが例外。ただし `/api/admin/works/<id>/export` と `/result` だけは、Cookie ではなく公開専用のトークン（Secret の `PUBLISH_TOKEN`、`Authorization: Bearer`）で通す（公開のスクリプトから呼ぶので Origin が無い。トークンはほかの API では通らない。docs/REGISTER.md 13.2）。毎回 Cookie の署名、期限、いまの ID と同じかを見直す。書き込みは `Origin` と `Sec-Fetch-Site` も見る
 - **閉じる条件**：`ADMIN_USERNAME`、`ADMIN_PASSWORD_HASH`（形式が正しいこと）、`ADMIN_SESSION_SECRET`（32 文字以上）のどれかが欠ければ誰も入れない。開発用の抜け道は無い
 - **総当たり**：IP の /64 ごとに、15 分で 10 回失敗すると 429。数えるのは isolate のメモリと、D1 の `login_failures`（`migrations/0003`。D1 が無ければ KV に 15 分で消える鍵）。鍵は IP の /64 を日替わりで HMAC したもので、生の IP は保存しない。行は 15 分を過ぎたら消す。保存先が落ちているときはメモリの数だけで守る
 - パスワードは平文で持たない。リポジトリ、ログ、エラーの文に出さない。作るのは `scripts/admin-password.mjs`（打った文字を画面に出さず、ハッシュだけを標準出力に出す）
@@ -133,8 +142,11 @@ openssl rand -base64 48 | npx wrangler pages secret put ADMIN_SESSION_SECRET --p
 node tests/make-dev-vars.mjs > .dev.vars    # その場で作るテスト用の値。.dev.vars はコミットされない
 npm run generate && npm run build
 npx wrangler d1 migrations apply meet-the-painting --local --config tests/wrangler.local.toml --persist-to .wrangler/state
-npx wrangler pages dev dist --d1 DB=local-meet-the-painting --persist-to .wrangler/state --port 8788
+npx wrangler pages dev dist --d1 DB=local-meet-the-painting --r2 WORK_UPLOADS=local-work-uploads --persist-to .wrangler/state --port 8788
 NODE_PATH=<playwright の場所> node tests/admin-e2e.mjs --shots <dir>    # 別の端末で。音は出さない
+NODE_PATH=<playwright の場所> node tests/register-e2e.mjs --shots <dir> # 作品の登録（写真 → 会話 → 確認カード → queued）
+# まとめて：毎回まっさらな D1・R2（.wrangler/e2e-state）に migrations を流し、pages dev を起こして e2e を順に流して止める（前の回の行で結果が揺れない）
+NODE_PATH=<playwright の場所> node tests/e2e-local.mjs [tests/admin-e2e.mjs tests/register-e2e.mjs]
 ```
 
 `tests/admin-e2e.mjs` は `.dev.vars` のテスト用の ID とパスワードで、本物のログイン画面から入る。コードに抜け道は無い。

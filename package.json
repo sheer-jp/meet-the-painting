@@ -13,7 +13,9 @@
     "preview": "vite preview",
     "generate": "node scripts/generate/index.js",
     "smoke": "node tests/smoke.mjs",
-    "typecheck": "tsc -p ."
+    "typecheck": "tsc -p .",
+    "publish-draft": "node scripts/publish-draft.mjs",
+    "publish-drafts": "node scripts/publish-draft.mjs --queued"
   },
   "repository": {
     "type": "git",

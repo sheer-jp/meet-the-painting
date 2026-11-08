@@ -23,3 +23,12 @@ binding = "DB"
 database_name = "meet-the-painting"
 database_id = "a63e09f7-8d0f-4429-8679-a1c424dcbec4"
 migrations_dir = "migrations"
+
+# 作品の登録の写真の置き場（docs/REGISTER.md 4 節と「実装の記録」）：Cloudflare R2。バケットを作ってから下の 3 行のコメントを外す
+# 外すまで管理画面の「作品を登録」は「登録はまだ使えません」と出す。ダッシュボードとサイトの他の部分は今までどおり動く
+# 無いバケットの binding を残すと配置が失敗するのでコメントにしてある（D1 と同じ考え方）
+# 作り方：npx wrangler r2 bucket create meet-work-uploads
+# [[r2_buckets]]
+# binding = "WORK_UPLOADS"
+# bucket_name = "meet-work-uploads"
+# 公開専用のトークン（/api/admin/works/<id>/export と /result だけが受け付ける）：openssl rand -base64 48 | npx wrangler pages secret put PUBLISH_TOKEN --project-name enter-the-painting

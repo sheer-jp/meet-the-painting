@@ -346,10 +346,11 @@ describe('展示用のキャプション（/exhibit/）', async () => {
   const html = exhibitPage({ works, baseUrl: BASE, qrSvgOf: (id: string) => qr.get(id) });
   const cards = [...html.matchAll(/<article class="ex-card" data-id="([^"]+)" data-url="([^"]+)">([\s\S]*?)<\/article>/g)];
 
-  it('6 点が A4 の 1 枚に並ぶ。検索に出さない', () => {
-    expect(works).toHaveLength(6);
-    expect(cards).toHaveLength(6);
-    expect(html.match(/<section class="ex-sheet">/g)).toHaveLength(1);
+  // 作品の数は登録（docs/REGISTER.md）で増えるので決め打ちしない。6 点ごとに A4 の 1 枚
+  it('6 点ずつ A4 の 1 枚に並ぶ。検索に出さない', () => {
+    expect(works.length).toBeGreaterThanOrEqual(6);
+    expect(cards).toHaveLength(works.length);
+    expect(html.match(/<section class="ex-sheet">/g)).toHaveLength(Math.ceil(works.length / 6));
     expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
     expect(html).toMatch(/@page \{ size: A4;/);
     expect(html).toContain('onclick="window.print()"');
