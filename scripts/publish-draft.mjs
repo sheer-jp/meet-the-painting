@@ -62,8 +62,8 @@ async function main() {
     if (r.none) { if (!results.length) console.log('queued の下書きはありません'); break; }
     results.push(r);
     console.log(r.ok ? `できた：${r.workId}（${Math.round(r.ms / 1000)} 秒）` : `止まった：${r.step}`);
-    // dry-run は状態を変えないので、次も同じ下書きになる。1 件で止める
-    if (!o.queued || !r.ok || o.dryRun) break;
+    // dry-run と配置しない試しは下書きの状態を変えないので、次も同じ下書きになる。1 件で止める
+    if (!o.queued || !r.ok || o.dryRun || !o.deploy) break;
   }
   const file = o.result || join(tmpdir(), 'meet-publish', `result-${Date.now()}.json`);
   mkdirSync(dirname(file), { recursive: true });
