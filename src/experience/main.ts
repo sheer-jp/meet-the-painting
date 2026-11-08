@@ -137,7 +137,7 @@ function lighten(hex: string) {
 
 // 出：stage は同期で隠し（呼び出し側と感想カードが #stage[hidden] を見る）、その上に同じ白の幕を 1 枚置いて 180ms ease-in で消す
 function fadeVeil() {
-  if (!document.body.animate) return;
+  if (!document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;   // reduced-motion は退場を動かさない（すぐ消す）
   const veil = document.createElement('div');
   veil.className = 'stage-veil'; veil.setAttribute('aria-hidden', 'true');
   veil.style.cssText = 'position:fixed;inset:0;z-index:50;background:#fff;pointer-events:none';
