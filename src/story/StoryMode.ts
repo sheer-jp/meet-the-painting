@@ -45,7 +45,8 @@ void main() {
   vec3 c = paintShade(uv, uLight, vec3(0.0, 0.0, 1.0));
   vec2 s = gl_FragCoord.xy / uResolution - 0.5;
   c *= 1.0 - uVignette * smoothstep(0.2, 0.75, length(s) * 1.2);
-  gl_FragColor = vec4(c * uFade, 1.0);
+  // 紙白から立ち上がる（11-08 polish-pro P1-1：以前は c * uFade で、白い地に黒い四角が出てから明るくなった）
+  gl_FragColor = vec4(mix(vec3(1.0), c, uFade), 1.0);
   #include <colorspace_fragment>
 }`;
 const VERT = /* glsl */ `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
