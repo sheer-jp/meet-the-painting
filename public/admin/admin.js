@@ -434,8 +434,8 @@ function showDashboard(name) {
     const setSort = (k) => { state.sort = k; renderWorks(works); workBox.querySelector(`[data-sort="${k}"]`)?.focus(); };
     const sel = h('select', { 'aria-label': '並べ替え', onchange: () => { state.sort = sel.value; renderWorks(works); } }, COLS.map(([k, l]) => h('option', { value: k, text: `${l}の多い順` })));
     sel.value = state.sort;
-    const head = h('div', { class: 'wk-head', 'aria-hidden': 'true' }, h('span', { text: '絵' }), COLS.map(([k, l]) => h('button', {
-      type: 'button', tabindex: '-1', 'data-sort': k, class: k === state.sort ? 'on' : null, text: l, onclick: () => setSort(k),
+    const head = h('div', { class: 'wk-head' }, h('span', { text: '絵' }), COLS.map(([k, l]) => h('button', {
+      type: 'button', 'data-sort': k, 'aria-pressed': String(k === state.sort), 'aria-label': `${l}の多い順に並べる`, class: k === state.sort ? 'on' : null, text: l, onclick: () => setSort(k),
     })));
     workBox.replaceChildren(
       h('div', { class: 'wk-sort' }, h('label', {}, '並べ替え', sel)),
