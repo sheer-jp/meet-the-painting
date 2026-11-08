@@ -71,6 +71,18 @@
     "it": "Vederla in una stanza",
     "pt": "Ver num ambiente"
   },
+  "rooms_other": {
+    "ja": "ほかの部屋でも見る",
+    "en": "See it in other rooms",
+    "zh-Hans": "在其他房间里看看",
+    "zh-Hant": "在其他房間裡看看",
+    "ko": "다른 방에서도 보기",
+    "fr": "La voir dans d’autres pièces",
+    "de": "In anderen Räumen ansehen",
+    "es": "Verla en otras habitaciones",
+    "it": "Vederla in altre stanze",
+    "pt": "Ver noutros ambientes"
+  },
   "rooms_note": {
     "ja": "部屋は AI 生成のイメージ。絵は実物の写真。寸法は目安",
     "en": "Rooms are AI-generated images. The painting is a real photo. Size is approximate",
@@ -912,16 +924,16 @@
     "pt": "Entrar outra vez"
   },
   "cg_after_rooms": {
-    "ja": "部屋で見る",
-    "en": "See it in a room",
-    "zh-Hans": "放进房间看看",
-    "zh-Hant": "放進房間看看",
-    "ko": "방에 걸어 보기",
-    "fr": "La voir dans une pièce",
-    "de": "Im Raum sehen",
-    "es": "Verla en una habitación",
-    "it": "Vederla in una stanza",
-    "pt": "Ver num ambiente"
+    "ja": "ほかの部屋でも見る",
+    "en": "See it in other rooms",
+    "zh-Hans": "在其他房间里看看",
+    "zh-Hant": "在其他房間裡看看",
+    "ko": "다른 방에서도 보기",
+    "fr": "La voir dans d’autres pièces",
+    "de": "In anderen Räumen ansehen",
+    "es": "Verla en otras habitaciones",
+    "it": "Vederla in altre stanze",
+    "pt": "Ver noutros ambientes"
   },
   "enter_note": {
     "ja": "色が動き出し、作家の言葉が流れます（約 1 分）",

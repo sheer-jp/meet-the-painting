@@ -266,7 +266,7 @@ async function entranceCase(name, viewport) {
     await afterBand.waitFor({ timeout: 5000 });
     const afterText = (await afterBand.textContent())?.replace(/\s+/g, '');
     const hasRooms = await page.locator('.rooms').count() > 0;
-    check(/絵の世界から戻ってきました/.test(afterText || '') && /もう一度のぞく/.test(afterText || '') && /部屋で見る/.test(afterText || '') === hasRooms && /ギャラリー全体を見る/.test(afterText || ''), `${name}: 閉じると作品ページの帯（${afterText}）`);
+    check(/絵の世界から戻ってきました/.test(afterText || '') && /もう一度のぞく/.test(afterText || '') && /ほかの部屋でも見る/.test(afterText || '') === hasRooms && /ギャラリー全体を見る/.test(afterText || ''), `${name}: 閉じると作品ページの帯（${afterText}）`);
     const s0Enter = [(await page.locator('#enter').textContent())?.trim(), (await page.locator('.actions .cg-enter-note').textContent())?.trim()];
     check(s0Enter[0] === '絵の世界をのぞく' && s0Enter[1] === '色が動き出し、作家の言葉が流れます（約 1 分）', `${name}: 作品ページの「${s0Enter[0]}」とその下の 1 行（${s0Enter[1]}）`);
     check(await page.locator('#enter-vr').isHidden(), `${name}: 作品ページも VR が使えない端末では「VR でのぞく」が出ない`);

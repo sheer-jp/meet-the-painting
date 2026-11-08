@@ -23,7 +23,7 @@ export function buildHud(parent: HTMLElement, lang: Lang, opts: { fromQr: boolea
   const btn = (id: string, key: string, primary = false) => { const b = document.createElement('button'); b.className = 'btn' + (primary ? ' primary' : ''); b.dataset.i18n = key; b.dataset.action = id; ending.appendChild(b); return b; };
   btn('again', 'again', true);
   if (opts.fromQr) btn('save', 'save');
-  if (opts.hasRooms) btn('rooms', 'rooms');
+  if (opts.hasRooms) btn('rooms', 'rooms_other');   // 終わりの画面は絵がもう部屋に掛かっているので「ほかの部屋でも見る」（11-08 作家）
   if (opts.contact) btn('contact', 'contact');
   btn('close', 'close');
   root.append(vignette, textLayer, title, paused, once, caption, ending, pause, skip, close, debug);
