@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { takeDaily, normalizeJourney, resolveOpener, askedQuestion, lastQuestion, similarity, OTHER_OPENER, OTHER_QUESTION, OTHER_QUESTION_FOREIGN, maybePurge, purgeOld, recordAsked, RETENTION_MS, resetDbReadyMemo } from '../functions/_lib/events.js';
 import { validateChat, validateSend, cleanReply, followupUser, followupSystem, followupBody } from '../functions/_lib/followup.js';
-import { summarize, pathOf, describeEvent, parseDays, FREE_LABEL, NO_REC, TOP_N } from '../functions/_lib/admin-data.js';
+import { summarize, pathOf, describeEvent, parseDays, FREE_LABEL, NO_REC, TOP_N, parseRange, rangeBounds, jstMidnight, jstHour, timeline, funnelOf, DEFAULT_RANGE } from '../functions/_lib/admin-data.js';
 import { onRequestPost as statPost, DB_DAILY_CAP } from '../functions/api/stat.js';
 import { onRequestPost as sendPost } from '../functions/api/followup/send.js';
 import { onRequestPost as chatPost, AI_DAILY_CAP } from '../functions/api/followup.js';
@@ -427,6 +427,83 @@ describe('管理の集計', () => {
     expect(parseDays(null)).toBe(30);
     expect(describeEvent(E('a', 'cg_free'))).toContain('文は保存していません');
     expect(describeEvent(E('a', 'buy_click', 'harmoney'), () => 'H')).toContain('H');
+  });
+});
+
+describe('管理のダッシュボード：期間、刻み、流れ（11-08）', () => {
+  const H = 3600_000, D = 86400_000;
+  // 2026-11-08 15:30 JST = 06:30 UTC
+  const NOW = Date.UTC(2026, 10, 8, 6, 30);
+  const MID = Date.UTC(2026, 10, 7, 15, 0);   // 11-08 0:00 JST
+  const E = (sid: string, ev: string, at: number, work_id: string | null = null, detail: string | null = null) => ({ sid, ev, work_id, detail, at, lang: 'ja' });
+  it('期間は today / 7 / 30 / all。無ければ 7 日。以前の days も読み替える', () => {
+    expect(DEFAULT_RANGE).toBe('7');
+    expect(parseRange('today')).toBe('today');
+    expect(parseRange('all')).toBe('all');
+    expect(parseRange('x')).toBe('7');
+    expect(parseRange(null, '30')).toBe('30');
+    expect(parseRange(null, '180')).toBe('all');
+    expect(parseRange(null, null)).toBe('7');
+  });
+  it('日の境目と時は日本時間', () => {
+    expect(jstMidnight(NOW)).toBe(MID);
+    expect(jstMidnight(MID)).toBe(MID);
+    expect(jstMidnight(MID - 1)).toBe(MID - D);
+    expect(jstHour(NOW)).toBe(15);
+    expect(jstHour(MID)).toBe(0);
+  });
+  it('前の期間は同じ長さだけ前。今日は昨日の同じ時刻まで。全期間は前なし', () => {
+    const t = rangeBounds('today', NOW);
+    expect(t).toMatchObject({ since: MID, until: NOW, prevSince: MID - D, prevUntil: NOW - D, step: H, count: 24, unit: 'hour' });
+    const w = rangeBounds('7', NOW);
+    expect(w).toMatchObject({ since: MID - 6 * D, prevSince: MID - 13 * D, prevUntil: NOW - 7 * D, step: D, count: 7, unit: 'day' });
+    expect(w.until - w.since).toBe(w.prevUntil! - w.prevSince!);
+    expect(rangeBounds('30', NOW)).toMatchObject({ since: MID - 29 * D, count: 30 });
+    const a = rangeBounds('all', NOW);
+    expect(a).toMatchObject({ prevSince: null, prevUntil: null, step: 7 * D, count: 26, unit: 'week' });
+    expect(a.since + a.count * a.step).toBe(MID + D);   // 最後の週が今日で終わる
+    expect(NOW - a.since).toBeGreaterThanOrEqual(180 * D);
+  });
+  it('刻みごとの数：タブは最初の出来事の日に 1 回、会場の QR から来たタブは分ける。期間の外は数えない', () => {
+    const b = rangeBounds('7', NOW);
+    const rows = [
+      E('a', 'concierge_start', MID - D + 10 * H), E('a', 'concierge_recommend', MID - D + 10 * H + 1, 'harmoney'), E('a', 'enter', MID + 1 * H, 'harmoney', 'concierge'),
+      E('b', 'work_view', MID + 9 * H, 'itadaki', 'qr'), E('b', 'buy_click', MID + 9 * H + 5, 'itadaki'),
+      E('c', 'work_view', MID + 14 * H, 'itadaki', 'gallery'),
+      E('z', 'work_view', MID - 30 * D, 'itadaki', 'qr'),
+    ];
+    const { series: s, hours } = timeline(rows, [MID + 2 * H, MID - 40 * D], b);
+    expect(s.start).toHaveLength(7);
+    expect(s.start[6]).toBe(MID);
+    expect(s.visitsOnline.slice(5)).toEqual([1, 1]);   // a は前日、c は今日
+    expect(s.visitsQr[6]).toBe(1);
+    expect(s.starts.slice(5)).toEqual([1, 0]);
+    expect(s.entered[6]).toBe(1);
+    expect(s.viewsQr[6]).toBe(1);
+    expect(s.viewsOnline[6]).toBe(1);
+    expect(s.buys[6]).toBe(1);
+    expect(s.feedback.reduce((x: number, y: number) => x + y, 0)).toBe(1);
+    expect(hours[10] + hours[9] + hours[14]).toBe(3);
+    expect(hours.reduce((x: number, y: number) => x + y, 0)).toBe(3);   // z は期間の外
+  });
+  it('流れ（ファネル）は前の段を通った会話だけを数え、段が下がるほど増えない。すすめた絵について見る', () => {
+    const rows = [
+      E('a', 'concierge_start', 1), E('a', 'concierge_recommend', 2, 'harmoney'), E('a', 'enter', 3, 'harmoney', 'concierge'), E('a', 'work_view', 4, 'harmoney', 'concierge'), E('a', 'buy_click', 5, 'harmoney'),
+      E('b', 'concierge_start', 1), E('b', 'concierge_recommend', 2, 'itadaki'), E('b', 'work_view', 3, 'itadaki', 'concierge'), E('b', 'buy_click', 4, 'itadaki'),
+      E('c', 'cg_opener', 1, null, 'x'), E('c', 'concierge_recommend', 2, 'itadaki'), E('c', 'enter', 3, 'harmoney', 'page'),
+      E('d', 'concierge_start', 1),
+      E('q', 'work_view', 1, 'itadaki', 'qr'), E('q', 'enter', 2, 'itadaki', 'page'),
+    ];
+    const f = funnelOf(rows);
+    expect(f.steps.map((x: { n: number }) => x.n)).toEqual([4, 3, 1, 1, 1]);
+    expect(f.steps.map((x: { label: string }) => x.label)).toEqual(['受付を始めた', 'おすすめが出た', '絵の世界へ', '作品ページ', '購入リンク']);
+    expect(f.viewedOnly).toBe(1);   // b
+    for (let i = 1; i < f.steps.length; i++) expect(f.steps[i].n).toBeLessThanOrEqual(f.steps[i - 1].n);
+    expect(funnelOf([]).steps.every((x: { n: number }) => x.n === 0)).toBe(true);
+  });
+  it('集計の合計に「会場の QR から来たタブ」がある', () => {
+    const s = summarize([E('a', 'work_view', 1, 'harmoney', 'qr'), E('a', 'work_view', 2, 'itadaki', 'qr'), E('b', 'work_view', 1, 'harmoney', 'direct')]);
+    expect(s.totals).toMatchObject({ visits: 2, qrVisits: 1, views: 3, qr: 2 });
   });
 });
 

@@ -263,37 +263,74 @@ for (const [tag, opts] of [['pc', PC], ['phone', PHONE]]) {
   await c3.close();
 }
 
-// ───── 6. ダッシュボード ─────
+// ───── 6. ダッシュボード（11-08 作り直し：期間、タイル、流れ、推移、絵ごと、感想のカード、会話） ─────
 for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
   const ctx = await browser.newContext(opts);
   const page = await ctx.newPage();
   const errs = collect(page);
   await login(page);
-  await page.waitForSelector('.kpis .kpi');
+  await page.waitForSelector('.tiles .tile');
   await page.waitForSelector('.fb, #fb .empty');
   check((await page.locator('.top .who').innerText()) === vars.ADMIN_USERNAME, `${name}：ログインできている`);
+  check((await page.locator('.period button[aria-pressed="true"]').getAttribute('data-range')) === '7', `${name}：期間の既定は 7 日`);
+  const labels = await page.locator('.tile .tile-label').allInnerTexts();
+  check(labels.join('|') === '受付を始めた|絵の世界へ|作品ページ（オンライン）|会場の QR から|届いた感想|購入リンク', `${name}：要点のタイルが 6 枚（${labels.join('、')}）`);
+  check(await page.locator('.tile svg.spark').count() === 6, `${name}：タイルごとに小さな線`);
+  check(await page.locator('.tile .delta b').count() === 6, `${name}：タイルごとに前の 7 日との差`);
+  // 流れ：段が下がるほど増えない。前の段が 5 件未満なら割合を出さない
+  const fn = await page.locator('.funnel .fn').evaluateAll((li) => li.map((x) => ({ n: Number(x.querySelector('.fn-n').textContent.replace(/,/g, '')), rate: x.querySelector('.fn-rate')?.textContent || '' })));
+  if (fn.length) {
+    check(fn.length === 5 && fn.every((x, i) => !i || x.n <= fn[i - 1].n), `${name}：流れは 5 段で、下ほど少ない（${fn.map((x) => x.n).join(' → ')}）`);
+    check(fn.every((x, i) => !i || !x.rate.includes('%') || fn[i - 1].n >= 5), `${name}：分母が 5 未満の段に割合が無い`);
+  } else check(await page.locator('#funnel .empty').count() === 1, `${name}：会話が無ければ流れは一文`);
+  // 推移：7 日なら 7 本の当たり。時間帯は 24 本。数字の表がある
+  const trendHits = await page.locator('#trend .chart').first().locator('rect.hit').count();
+  check(trendHits === 7 || await page.locator('#trend .empty').count() === 1, `${name}：日ごとの推移は 7 日分（${trendHits}）`);
+  if (trendHits) {
+    check(await page.locator('#trend .chart').nth(1).locator('rect.hit').count() === 24, `${name}：時間帯は 0〜23 時`);
+    check(await page.locator('#trend details summary', { hasText: '数字の表で見る' }).count() === 1, `${name}：推移に数字の表`);
+    await page.locator('#trend .chart').first().locator('rect.hit').last().hover({ force: true });
+    check(await page.locator('#trend .tip:not([hidden])').count() === 1, `${name}：棒に重ねると数が出る`);
+  }
+  // 絵ごと：6 点の小さな絵。会場の QR の数（5 節で ?from=qr を 1 回開いた）
+  check(await page.locator('#works .wk-row').count() === 6 && await page.locator('#works .wk-row img.thumb').count() === 6, `${name}：絵ごとの行が 6 つ、小さな絵つき`);
+  const qrCell = page.locator('#works .wk-row', { hasText: 'Harmoney' }).locator('.wk-cell').filter({ has: page.locator('.wk-label', { hasText: /^会場の QR$/ }) }).locator('b');
+  const qrN = Number(await qrCell.innerText());
+  check(qrN >= 1, `${name}：絵ごとに「会場の QR」を数えている（${qrN}）`);
+  check(await page.locator('#works a[href="/exhibit/"]', { hasText: '展示用のキャプションを印刷' }).count() === 1, `${name}：「展示用のキャプションを印刷」`);
   if (name === 'pc') {
+    // 並べ替え：見出しを押すと、その列の多い順
+    await page.locator('.wk-head button[data-sort="feedback"]').click();
+    const fbVals = await page.locator('#works .wk-row').evaluateAll((rows) => rows.map((r) => Number(r.querySelectorAll('.wk-cell b')[5].textContent)));
+    check(fbVals.every((v, i) => !i || v <= fbVals[i - 1]), `並べ替え：感想の多い順（${fbVals.join(', ')}）`);
     const body = page.locator('.fb-body', { hasText: '朝の光みたいで' }).first();
     check(await body.count() === 1, '送った感想が届いている');
     check((await body.textContent()).includes('<img src=x'), '本文の HTML は文字として出る');
     check(await page.locator('.fb-body img, .fb-body script').count() === 0, '本文から要素が作られない');
     check(await page.evaluate(() => window.__xss === undefined), 'XSS が起きない');
-    await page.locator('.fb', { hasText: '朝の光みたいで' }).first().locator('.text-btn', { hasText: '流れを見る' }).click();
+    const card = page.locator('.fb', { hasText: '朝の光みたいで' }).first();
+    check(await card.locator('img.thumb').count() === 1 && (await card.locator('.fb-from').innerText()) === 'オンライン', '感想のカードに絵とどこから（オンライン）');
+    await card.locator('.text-btn', { hasText: '流れを見る' }).click();
     await page.waitForSelector('.journey li');
     check((await page.locator('.journey').first().innerText()).includes('感想を作家に届けた'), '感想からその会話の流れを開ける');
-    await page.locator('.period button', { hasText: '7 日' }).click();
-    await page.waitForTimeout(500);
-    check((await page.locator('.period button[aria-pressed="true"]').innerText()).includes('7'), '期間を切り替えられる');
-    // 絵ごとの表の「会場の QR から」（上で ?from=qr で 1 回開いた）と、キャプションの印刷への入口
-    const heads = await page.locator('#works th').allInnerTexts();
-    const qi = heads.indexOf('会場の QR から');
-    const row = page.locator('#works tbody tr', { hasText: 'Harmoney' }).first();
-    const qrN = qi > 0 ? Number(await row.locator('td').nth(qi).innerText()) : -1;
-    check(qi > 0 && qrN >= 1, `絵ごとの表に「会場の QR から」の列があり、数えている（${qrN}）`);
-    check(await page.locator('#works a[href="/exhibit/"]', { hasText: '展示用のキャプションを印刷' }).count() === 1, '管理ページに「展示用のキャプションを印刷」');
+    // 期間を今日にすると、推移は時間ごと（24 本）で、時間帯のグラフは出さない
+    await page.locator('.period button[data-range="today"]').click();
+    await page.waitForFunction(() => document.querySelector('.period button[aria-pressed="true"]')?.dataset.range === 'today' && !document.querySelector('.dash.is-loading'));
+    const todayHits = await page.locator('#trend .chart').first().locator('rect.hit').count();
+    check(todayHits === 24 && await page.locator('#trend .chart').count() === 1, `今日は時間ごとの推移だけ（${todayHits}）`);
+    check((await page.locator('.tile .delta').first().innerText()).includes('昨日の同じ時刻まで'), '今日は昨日の同じ時刻までと比べる');
+    await page.locator('.period button[data-range="all"]').click();
+    await page.waitForFunction(() => document.querySelector('.period button[aria-pressed="true"]')?.dataset.range === 'all' && !document.querySelector('.dash.is-loading'));
+    check(await page.locator('.tile .delta b').count() === 0, '全期間は前の期間との差を出さない');
+    check(await page.locator('.fb', { hasText: '朝の光みたいで' }).count() >= 1, '全期間で感想が出る');
+    check(await page.locator('#talk svg.flow').count() === 1 || await page.locator('#talk .empty').count() === 1, 'PC の会話の流れは SVG');
+  } else {
+    check(await page.locator('#talk svg.flow').count() === 0, 'スマホの会話の流れは段ごとの横棒（横スクロールの図にしない）');
+    const small = await page.evaluate(() => [...document.querySelectorAll('.dash button, .dash select, .dash summary, .period button, .wk-work a')].filter((e) => e.offsetParent && e.getBoundingClientRect().height < 44).map((e) => e.textContent.trim().slice(0, 12)));
+    check(small.length === 0, `スマホ：押すところは高さ 44px 以上 ${small.join('、')}`);
   }
   await page.waitForTimeout(300);
-  await shot(page, `admin-${name}-full`, { fullPage: true });
+  await shot(page, `admin-${name}-full`, { fullPage: true, scale: 'css' });   // スマホの縦長は端末の画素だと撮れる高さを超える
   check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), `${name}：ページが横にはみ出さない`);
   check(errs.length === 0, `${name}：コンソールにエラーが無い ${errs.join(' / ').slice(0, 300)}`);
   await ctx.close();

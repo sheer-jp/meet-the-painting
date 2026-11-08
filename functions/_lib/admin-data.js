@@ -20,6 +20,102 @@ const OUTCOME_LABEL = Object.fromEntries(OUTCOMES);
 /** @param {any} v */
 export const parseDays = (v) => { const n = Number(v); return DAY_CHOICES.includes(n) ? n : 30; };
 
+// ───── 期間（11-08 ダッシュボード）：今日／7 日／30 日／全期間。日の境目は日本時間 ─────
+export const RANGES = ['today', '7', '30', 'all'];
+export const DEFAULT_RANGE = '7';
+const HOUR = 3600_000, DAY = 86400_000, JST = 9 * HOUR;
+/** range が無ければ、以前の days（7／30／90／180）を読み替える @param {any} range @param {any} [days] */
+export function parseRange(range, days) {
+  if (RANGES.includes(String(range))) return String(range);
+  const d = Number(days);
+  if (d === 7 || d === 30) return String(d);
+  if (d === 90 || d === 180) return 'all';
+  return DEFAULT_RANGE;
+}
+/** その時刻を含む日本時間の日の 0 時（ミリ秒） @param {number} t */
+export const jstMidnight = (t) => Math.floor((t + JST) / DAY) * DAY - JST;
+/** 日本時間の時（0〜23） @param {number} t */
+export const jstHour = (t) => Math.floor((((t + JST) % DAY) + DAY) % DAY / HOUR);
+
+/**
+ * 期間の境目と、グラフの刻み。前の期間は「同じ長さだけ前」（今日なら昨日の同じ時刻まで）。全期間は前の期間なし
+ * @param {string} range @param {number} [now]
+ * @returns {{ range: string, since: number, until: number, prevSince: number|null, prevUntil: number|null, step: number, count: number, unit: 'hour'|'day'|'week' }}
+ */
+export function rangeBounds(range, now = Date.now()) {
+  const today = jstMidnight(now);
+  if (range === 'today') return { range, since: today, until: now, prevSince: today - DAY, prevUntil: now - DAY, step: HOUR, count: 24, unit: 'hour' };
+  if (range === '7' || range === '30') {
+    const n = Number(range), since = today - (n - 1) * DAY;
+    return { range, since, until: now, prevSince: since - n * DAY, prevUntil: now - n * DAY, step: DAY, count: n, unit: 'day' };
+  }
+  // 全期間：出来事は 180 日で消えるので、26 週（182 日）を週ごとに。最後の週が今日で終わる
+  const count = 26, since = today + DAY - count * 7 * DAY;
+  return { range: 'all', since, until: now, prevSince: null, prevUntil: null, step: 7 * DAY, count, unit: 'week' };
+}
+
+// 会場の QR から来た会話か（作品ページを ?from=qr で開いた）
+const viaQr = (/** @type {{ ev: string, detail: string|null }[]} */ list) => list.some((e) => e.ev === 'work_view' && e.detail === 'qr');
+
+/**
+ * 刻みごとの数（スパークラインと日ごとの推移）と、時間帯（0〜23 時）の分布
+ * visits：その刻みに最初の出来事があったタブの数（オンライン／会場の QR に分ける）。starts：受付を通った会話の数（最初の受付の出来事の刻み）
+ * @param {{ sid: string, ev: string, work_id: string|null, detail: string|null, at: number }[]} rows 時刻の順
+ * @param {number[]} feedbackTimes 感想の created_at
+ * @param {{ since: number, step: number, count: number }} b
+ */
+export function timeline(rows, feedbackTimes, b) {
+  const zero = () => Array(b.count).fill(0);
+  const s = { start: Array.from({ length: b.count }, (_, i) => b.since + i * b.step), visitsOnline: zero(), visitsQr: zero(), starts: zero(), entered: zero(), viewsOnline: zero(), viewsQr: zero(), buys: zero(), feedback: zero() };
+  const hours = Array(24).fill(0);
+  const at = (/** @type {number} */ t) => { const i = Math.floor((t - b.since) / b.step); return i >= 0 && i < b.count ? i : -1; };
+  const add = (/** @type {number[]} */ arr, /** @type {number} */ t) => { const i = at(t); if (i >= 0) arr[i]++; };
+  /** @type {Map<string, any[]>} */
+  const bySid = new Map();
+  for (const r of rows) {
+    if (!bySid.has(r.sid)) bySid.set(r.sid, []);
+    bySid.get(r.sid).push(r);
+    if (r.ev === 'enter' && r.work_id) add(s.entered, r.at);
+    else if (r.ev === 'work_view' && r.work_id) add(r.detail === 'qr' ? s.viewsQr : s.viewsOnline, r.at);
+    else if (r.ev === 'buy_click' && r.work_id) add(s.buys, r.at);
+  }
+  for (const list of bySid.values()) {
+    const first = list[0].at;
+    add(viaQr(list) ? s.visitsQr : s.visitsOnline, first);
+    if (at(first) >= 0) hours[jstHour(first)]++;
+    const conv = list.find((e) => CONVERSATION.has(e.ev));
+    if (conv) add(s.starts, conv.at);
+  }
+  for (const t of feedbackTimes) add(s.feedback, t);
+  return { series: s, hours };
+}
+
+// 流れ（ファネル）の段。1 つの会話（タブ）が、前の段を通ってその段まで進んだか。絵の世界・作品ページ・購入はすすめた絵について見る
+export const FUNNEL = [
+  ['started', '受付を始めた'],
+  ['recommended', 'おすすめが出た'],
+  ['entered', '絵の世界へ'],
+  ['viewed', '作品ページ'],
+  ['bought', '購入リンク'],
+];
+/** @param {{ sid: string, ev: string, work_id: string|null }[]} rows 時刻の順 */
+export function funnelOf(rows) {
+  /** @type {Map<string, any[]>} */
+  const bySid = new Map();
+  for (const r of rows) { if (!bySid.has(r.sid)) bySid.set(r.sid, []); bySid.get(r.sid).push(r); }
+  const n = [0, 0, 0, 0, 0];
+  let viewedOnly = 0;   // おすすめの絵の作品ページは見たが、絵の世界には入らなかった会話
+  for (const list of bySid.values()) {
+    if (!list.some((e) => CONVERSATION.has(e.ev))) continue;
+    const rec = new Set(list.filter((e) => e.ev === 'concierge_recommend').map((e) => e.work_id));
+    const on = (/** @type {string} */ ev) => list.some((e) => e.ev === ev && rec.has(e.work_id));
+    const steps = [true, rec.size > 0, on('enter'), on('work_view'), on('buy_click')];
+    for (let i = 0; i < steps.length && steps[i]; i++) n[i]++;
+    if (steps[1] && !steps[2] && steps[3]) viewedOnly++;
+  }
+  return { steps: FUNNEL.map(([key, label], i) => ({ key, label, n: n[i] })), viewedOnly };
+}
+
 /** @param {Map<string, number>} m */
 const ranked = (m) => [...m.entries()].map(([label, n]) => ({ label, n })).sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'ja'));
 /** @param {Map<string, number>} m @param {string} key */
@@ -87,10 +183,12 @@ export function summarize(rows, feedback = [], works = []) {
     if (f.reaction) inc(fbReactions, f.reaction, f.n);
   }
   const paths = [...bySid.values()].map(pathOf).filter((p) => p !== null);
+  let qrVisits = 0;
+  for (const list of bySid.values()) if (viaQr(list)) qrVisits++;
   const sum = (/** @type {'recommended'|'entered'|'picked'|'views'|'qr'|'buys'} */ k) => Object.values(perWork).reduce((a, w) => a + w[k], 0);
   return {
     // views と qr：作品ページを開いた回数と、そのうち会場の QR から（オンラインは views - qr）
-    totals: { visits: bySid.size, conversations: paths.length, recommended: sum('recommended'), entered: sum('entered'), views: sum('views'), qr: sum('qr'), buys: sum('buys'), feedback: feedbackTotal, free, others, rules },
+    totals: { visits: bySid.size, qrVisits, conversations: paths.length, recommended: sum('recommended'), entered: sum('entered'), views: sum('views'), qr: sum('qr'), buys: sum('buys'), feedback: feedbackTotal, free, others, rules },
     works: Object.entries(perWork).map(([id, w]) => ({ id, ...w })).sort((a, b) => b.recommended + b.entered + b.feedback - (a.recommended + a.entered + a.feedback) || a.id.localeCompare(b.id)),
     openers: ranked(openers),
     questions: ranked(questions),
