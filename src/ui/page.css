@@ -214,9 +214,13 @@ body.paper {
 /* 受付（C）：上にキャラクター、下に会話、入力欄は下に固定。高さは var(--vh100)（キーボードが出たら visualViewport の高さ） */
 body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 /* キャラクターの高さ（縦画面）。迎えの状態は大きく 44%、会話の状態（.is-talk）は 20%、キーボードが出たら 16%。0.4 秒で縮む */
-@property --cg-host { syntax: '<percentage>'; inherits: true; initial-value: 30%; }
+/* 11-08 reception-fit：迎えの状態の窓は「見える高さ − 窓の外に要る高さ（--cg-need）」。30% を上限、--cg-host-min（顔が小さくなりすぎない）を下限に縮む。
+   % は .cg の高さ（var(--vh100) = dvh、無ければ vh。キーボードが出たら visualViewport の高さ）に対して。会話の状態は従来どおり 15% などの % */
+@property --cg-host { syntax: '<length-percentage>'; inherits: true; initial-value: 30%; }
 .cg {
-  --cg-host: 30%;   /* 迎え。チャットの UI らしく、人は上に小さめ（11-06 作家） */
+  --cg-need: 540px;      /* 窓の外に要る高さ：見出し・あいさつ 3 つ・選択肢 4 つ・下のリンク（測った値 + 4px。高さ・幅・言語の段で下が上書き。docs/ENTRANCE.md 3.2） */
+  --cg-host-min: 80px;   /* 顔が切れず、表情が読める最小（上半身は object-fit: contain で窓の下端から入るので、小さくなるだけで切れない） */
+  --cg-host: clamp(var(--cg-host-min), calc(100% - var(--cg-need)), 30%);   /* 迎え。チャットの UI らしく、人は上に小さめ（11-06 作家） */
   transition: --cg-host .4s ease;
   position: fixed; left: 0; right: 0; top: var(--cg-top, 0px); height: var(--cg-h, var(--vh100));
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--cg-host, 30%) minmax(0, 1fr) auto;
@@ -288,15 +292,65 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 @keyframes cg-in { from { opacity: 0; transform: translateY(6px); } }
 /* 会話が始まったら（最初の選択か「自分のことばで書く」）キャラクターを小さくして文字を読みやすく。キーボードが出たらさらに小さく（11-06 作家）
    おすすめは別の画面 C2（concierge.css） */
-/* 背の低い縦画面（iPhone SE など、高さ 700px 以下）：迎えの状態は 25%（あいさつ 2 文と 4 つのボタンが入りきるように） */
-@media (max-height: 700px) and (orientation: portrait) { .cg { --cg-host: 21%; } .cg:not(.is-talk) .cg-foot { margin-top: 8px; } .cg:not(.is-talk) .cg-thread { gap: 6px; padding-top: 4px; } .cg:not(.is-talk) .cg-line { padding-block: 6px; } }   /* P-16 で 26% → 25%。11-07 FIX-B（AUDIT-1 P1-2）：390×664 で最初の 1 文と選択肢が窓に収まるよう 23% */
+/* 11-08 reception-fit（作家「どの端末でもスクロールいらないように。初手で選べるもの全部見えてた方がいい」）：
+   迎えの状態は、あいさつ 3 つ・選択肢 4 つ・下のリンクまでが会話の欄にスクロールなしで入る。窓は上の --cg-host で縮み、低い画面は余白と行間を詰める。
+   選択肢は 44px を下回らない（P-9）。スマホの横向き（高さ 500px 以下）は下の 2 列の組みのまま。以前の「高さ 700px 以下の縦は 21%」は窓の式に置き換えた */
+.cg:not(.is-talk) .cg-foot { flex-wrap: nowrap; }   /* スキップと「記録について」は 1 行（2 行にすると 44px 増える）。狭い画面はスキップの文の中で折り返す */
+.cg:not(.is-talk) .cg-skip { flex: 0 1 auto; min-width: 0; }
+.cg-data { flex: none; }
+@media (max-height: 800px) and (min-height: 501px), (max-height: 500px) and (orientation: portrait) {
+  .cg-top { margin-bottom: 8px; }
+  .cg:not(.is-talk) .cg-thread { gap: 6px; padding-top: 4px; }
+  .cg:not(.is-talk) .cg-thread > :first-child { margin-top: 2px; }
+  .cg:not(.is-talk) .cg-greet.cg-line { max-width: 100%; padding-block: 5px; line-height: 1.6; }
+  .cg:not(.is-talk) .cg-openers { gap: 6px; margin: 0 0 2px 8px; }
+  .cg:not(.is-talk) .cg-openers-cap { margin-bottom: 0; }
+  .cg:not(.is-talk) .cg-foot { margin-top: 10px; }
+  .cg:not(.is-talk) .cg-opt { line-height: 1.3; }   /* 2 行に折り返す選択肢（英語など）だけが低くなる。1 行は 44px のまま */
+  /* 英語などラテン文字の言語は、明朝のラテン文字が幅を取るので少し小さく（吹き出し 15px、選択肢 14px） */
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg:not(.is-talk) .cg-greet.cg-line { font-size: 15px; letter-spacing: .01em; }
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg:not(.is-talk) .cg-opt { font-size: 14px; letter-spacing: .02em; }
+}
+@media (max-height: 640px) and (min-height: 501px), (max-height: 500px) and (orientation: portrait) {
+  .cg-top { margin-bottom: 6px; padding-top: 2px; }
+  .cg:not(.is-talk) .cg-thread { gap: 4px; padding-top: 2px; }
+  .cg:not(.is-talk) .cg-greet.cg-line { padding-block: 4px; line-height: 1.5; }
+  .cg:not(.is-talk) .cg-openers { gap: 4px; }
+  .cg:not(.is-talk) .cg-openers-cap { line-height: 1.4; }
+  .cg:not(.is-talk) .cg-opt { padding-block: 3px; }
+  .cg:not(.is-talk) .cg-foot { margin-top: 6px; }
+}
+/* 窓の外に要る高さ（--cg-need）の段。値は measure-fit.cjs（_meta/development/enter-the-painting/evidence/reception-fit/）で、選択肢がいちばん幅を取る 3 つのときに測った高さ + 4px。
+   ラテン文字の言語（英語など）は吹き出しと選択肢が折り返しやすいので別の値。段に無い組み合わせで足りないときは、従来どおり会話の欄の中でスクロールする */
+:root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg { --cg-need: 600px; }
+@media (max-height: 800px) and (min-height: 501px), (max-height: 500px) and (orientation: portrait) {
+  .cg { --cg-need: 472px; }
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg { --cg-need: 492px; }
+}
+@media (max-height: 640px) and (min-height: 501px), (max-height: 500px) and (orientation: portrait) {
+  .cg { --cg-need: 436px; }
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg { --cg-need: 454px; }
+}
+@media (max-width: 360px) and (max-height: 800px) {
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg { --cg-need: 510px; }
+}
+@media (max-width: 360px) and (max-height: 640px) {
+  :root:not(:lang(ja)):not(:lang(zh)):not(:lang(ko)) .cg { --cg-need: 478px; }
+}
+@media (max-width: 340px) and (max-height: 800px) { .cg { --cg-need: 516px; } }   /* 320px 幅は日本語のあいさつも 2 つ折り返す */
+@media (max-width: 340px) and (max-height: 640px) { .cg { --cg-need: 486px; } }
+/* 幅 360px 以下：見出しが 2 行にならないよう「言語」の字を省き（選択欄は aria-label で読める。作品ページの 420px 以下と同じ）、スキップを 1 段小さく */
+@media (max-width: 360px) {
+  .cg-top .lang > span { display: none; }
+  .cg:not(.is-talk) .cg-skip { font-size: 11px; letter-spacing: .02em; }
+}
 .cg.is-talk { --cg-host: 15%; }
 @media (max-height: 700px) and (orientation: portrait) { .cg.is-talk { --cg-host: 14%; } }
 .cg.is-talk.is-kb, .cg.is-kb { --cg-host: 12%; }
 /* PC・横向きも同じ「上に人、下に会話」（11-06 作家「パソコンでも同じ感じで」）。幅は 640px に抑えて中央に。人の高さは px で上限 */
 @media (min-width: 640px) {
   .cg { max-width: 640px; margin: 0 auto; }   /* 中央に（11-06 深夜、作家「右に寄っている」） */
-  .cg { grid-template-rows: auto clamp(130px, calc(var(--vh100) * .24), 220px) minmax(0, 1fr) auto; }   /* 人の高さは 220px まで（画面が高くても大きくしない。低い画面では選択肢が全部入るように縮める） */
+  .cg { --cg-host: min(clamp(130px, calc(var(--vh100) * .24), 220px), max(var(--cg-host-min), calc(100% - var(--cg-need)))); }   /* 人の高さは 220px まで（画面が高くても大きくしない。低い画面では選択肢が全部入るように縮める。11-08 は窓の外に要る高さで） */
   .cg.is-talk { grid-template-rows: auto 150px minmax(0, 1fr) auto; }
   .cg.is-kb { grid-template-rows: auto 120px minmax(0, 1fr) auto; }
   .cg-host { max-height: 220px; }
