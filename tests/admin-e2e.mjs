@@ -252,6 +252,15 @@ for (const [tag, opts] of [['pc', PC], ['phone', PHONE]]) {
   check(b2.some((b) => b.includes('"cg_free"')), '自由入力は「あり」だけ送られる');
   check(!b2.some((b) => b.includes('秘密のことば')), '自由入力の文は出来事に入らない');
   await c2.close();
+  // 会場の QR（?from=qr）から作品ページを開くと、work_view の via は qr（DECISIONS 76）
+  const c3 = await browser.newContext(PHONE);
+  const p3 = await c3.newPage();
+  const b3 = [];
+  p3.on('request', (r) => { if (r.url().endsWith('/api/stat')) b3.push(r.postData() || ''); });
+  await p3.goto(`${BASE}/w/${WORK}/?from=qr`);
+  await p3.waitForTimeout(1500);
+  check(b3.some((b) => { try { const j = JSON.parse(b); return j.ev === 'work_view' && j.via === 'qr' && j.id === WORK; } catch { return false; } }), '会場の QR から開くと work_view の via は qr');
+  await c3.close();
 }
 
 // ───── 6. ダッシュボード ─────
@@ -275,6 +284,13 @@ for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
     await page.locator('.period button', { hasText: '7 日' }).click();
     await page.waitForTimeout(500);
     check((await page.locator('.period button[aria-pressed="true"]').innerText()).includes('7'), '期間を切り替えられる');
+    // 絵ごとの表の「会場の QR から」（上で ?from=qr で 1 回開いた）と、キャプションの印刷への入口
+    const heads = await page.locator('#works th').allInnerTexts();
+    const qi = heads.indexOf('会場の QR から');
+    const row = page.locator('#works tbody tr', { hasText: 'Harmoney' }).first();
+    const qrN = qi > 0 ? Number(await row.locator('td').nth(qi).innerText()) : -1;
+    check(qi > 0 && qrN >= 1, `絵ごとの表に「会場の QR から」の列があり、数えている（${qrN}）`);
+    check(await page.locator('#works a[href="/exhibit/"]', { hasText: '展示用のキャプションを印刷' }).count() === 1, '管理ページに「展示用のキャプションを印刷」');
   }
   await page.waitForTimeout(300);
   await shot(page, `admin-${name}-full`, { fullPage: true });

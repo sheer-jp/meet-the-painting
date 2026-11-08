@@ -28,6 +28,8 @@ a { color: inherit; text-underline-offset: 3px; }
 section { margin-top: 48px; }
 h2 { margin: 0 0 4px; font: 400 16px/1.6 var(--serif); letter-spacing: .05em; }
 .sub { margin: 0 0 14px; color: var(--ink-2); font-size: 12.5px; }
+.print-link { margin: 10px 0 0; font-size: 13px; }
+.print-link a { display: inline-flex; align-items: center; min-height: 44px; text-decoration-color: var(--line); text-underline-offset: 4px; }
 .empty { margin: 8px 0 0; padding: 28px 0; color: var(--ink-2); text-align: center; background: var(--bg-2); border-radius: 6px; font-size: 13px; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 0 0 8px; }

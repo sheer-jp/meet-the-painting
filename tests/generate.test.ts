@@ -333,3 +333,66 @@ describe('古い Safari の CSS', () => {
     expect(css[0]).toContain('overflow: hidden; overflow: clip;');
   });
 });
+
+// 会場に掛けるキャプション（DECISIONS 76）：A4 に 6 枚、QR は ?from=qr、work.json に無い項目は出さない
+describe('展示用のキャプション（/exhibit/）', async () => {
+  const { exhibitPage, exhibitUrl, phraseSplit, phraseHtml, EXHIBIT_TEXT, qrSvg } = await import('../scripts/generate/pages.js');
+  const { readdirSync } = await import('node:fs');
+  const BASE = 'https://meet.sheerarts.com';
+  const ids = readdirSync('works', { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  const works = ids.map((id) => JSON.parse(readFileSync(`works/${id}/work.json`, 'utf8')));
+  const qr = new Map<string, string>();
+  for (const w of works) qr.set(w.id, await qrSvg(exhibitUrl(BASE, w.id)));
+  const html = exhibitPage({ works, baseUrl: BASE, qrSvgOf: (id: string) => qr.get(id) });
+  const cards = [...html.matchAll(/<article class="ex-card" data-id="([^"]+)" data-url="([^"]+)">([\s\S]*?)<\/article>/g)];
+
+  it('6 点が A4 の 1 枚に並ぶ。検索に出さない', () => {
+    expect(works).toHaveLength(6);
+    expect(cards).toHaveLength(6);
+    expect(html.match(/<section class="ex-sheet">/g)).toHaveLength(1);
+    expect(html).toContain('<meta name="robots" content="noindex, nofollow">');
+    expect(html).toMatch(/@page \{ size: A4;/);
+    expect(html).toContain('onclick="window.print()"');
+  });
+  it('QR は BASE_URL の作品ページ + ?from=qr。埋め込んだ QR の形もその URL のもの', () => {
+    for (const [, id, url, inner] of cards) {
+      expect(url).toBe(`${BASE}/w/${id}/?from=qr`);
+      const d = /<path stroke="#000000" d="([^"]+)"/.exec(qr.get(id)!)![1];
+      expect(inner).toContain(d);
+      expect(inner).toContain('class="ex-qr-svg"');
+    }
+  });
+  it('題名・制作年・技法・寸法は work.json の値。英語の題名は日本語と違うときだけ', () => {
+    const card = (id: string) => cards.find((c) => c[1] === id)![3];
+    expect(card('instinct')).toContain('<h2 class="ex-title">本能</h2>');
+    expect(card('instinct')).toContain('<p class="ex-title-en" lang="en">Instinct</p>');
+    expect(card('golden-path')).not.toContain('ex-title-en');   // Golden Path / Golden Path は 1 回だけ
+    expect(card('harmoney')).toContain('<span class="ex-year" data-field="year">2025</span>');
+    expect(card('harmoney')).toContain('<span class="ex-size" data-field="size">F15 ・ 53 × 65.2 cm</span>');
+    expect(card('harmoney')).toContain('<span class="ph">キャンバスに</span><span class="ph">アクリル</span>');
+    expect(card('harmoney')).toContain(EXHIBIT_TEXT.scan.slice(-4));
+  });
+  it('work.json に無い項目は出さない（でっち上げない）', () => {
+    const bare = exhibitPage({ works: [{ id: 'bare', title: { ja: '無題の試し' }, size_cm: [10, 12] }], baseUrl: BASE, qrSvgOf: () => '<svg viewBox="0 0 1 1"></svg>' });
+    expect(bare).not.toContain('data-field="year"');
+    expect(bare).not.toContain('data-field="medium"');
+    expect(bare).not.toContain('class="ex-title-en"');
+    expect(bare).toContain('<span class="ex-size" data-field="size">10 × 12 cm</span>');
+    const noSize = exhibitPage({ works: [{ id: 'nosize', title: { ja: '題' } }], baseUrl: BASE, qrSvgOf: () => '' });
+    expect(noSize).not.toContain('data-field="size"');
+    expect(noSize).not.toContain('class="ex-meta"');
+  });
+  it('7 点なら 2 枚目に回る', () => {
+    const seven = exhibitPage({ works: [...works, { id: 'extra', title: { ja: '七つ目' }, size_cm: [70, 80] }], baseUrl: BASE, qrSvgOf: (id: string) => qr.get(id) || '' });
+    expect(seven.match(/<section class="ex-sheet">/g)).toHaveLength(2);
+  });
+  it('語の途中で改行しない：文節で区切り、カタカナの語はまとめる', () => {
+    expect(phraseSplit('シナベニヤにミクストメディア')).toEqual(['シナベニヤに', 'ミクストメディア']);
+    expect(phraseSplit(EXHIBIT_TEXT.scan)).toEqual(['スマホで', '読み取ると、', 'この', '絵の', '中に', '入れます']);
+    expect(phraseSplit(EXHIBIT_TEXT.sound)).toEqual(['音が', '出ます。', '消音でも', '文字で', '楽しめます']);
+    expect(phraseSplit('Golden Path')).toEqual(['Golden Path']);
+    expect(phraseSplit('QR を読み取ると')).toEqual(['QR を', '読み取ると']);
+    // 句読点までをまとめ、まず句の間で折り返す
+    expect(phraseHtml(EXHIBIT_TEXT.scan)).toBe('<span class="cl"><span class="ph">スマホで</span><span class="ph">読み取ると、</span></span><span class="cl"><span class="ph">この</span><span class="ph">絵の</span><span class="ph">中に</span><span class="ph">入れます</span></span>');
+  });
+});

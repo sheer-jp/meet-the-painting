@@ -70,6 +70,9 @@ describe('出来事の検査（自由入力を混ぜない）', () => {
     expect(normalizeJourney({ ev: 'cg_rule', sid: SID, via: 'morning' }, CATALOG)?.detail).toBe('朝');
     expect(normalizeJourney({ ev: 'cg_rule', sid: SID, via: 'toString' }, CATALOG)).toBeNull();
     expect(normalizeJourney({ ev: 'fu_reaction', sid: SID, id: 'itadaki', via: 'love' }, CATALOG)?.detail).toBe('love');
+    // 会場の QR（?from=qr）は作品ページを開いた出来事だけ。「入る」の経路には無い
+    expect(normalizeJourney({ ev: 'work_view', sid: SID, id: 'harmoney', via: 'qr' }, CATALOG)?.detail).toBe('qr');
+    expect(normalizeJourney({ ev: 'enter', sid: SID, id: 'harmoney', via: 'qr' }, CATALOG)).toBeNull();
   });
   it('言語は知っているものだけ', () => {
     expect(normalizeJourney({ ev: 'cg_free', sid: SID, lang: 'ko' }, CATALOG)?.lang).toBe('ko');
@@ -124,6 +127,16 @@ describe('/api/stat：KV と D1', () => {
     await statPost({ request: statReq({ ev: 'work_view', id: 'harmoney', via: 'direct', sid: SID }), env: { DB: db, STATS, ASSETS: assets } });
     expect(STATS.store.size).toBe(0);
     expect(db.calls.filter((c) => c.sql.startsWith('INSERT INTO events'))).toHaveLength(1);
+  });
+  it('会場の QR から（work_view の via=qr）は D1 に detail=qr で残る。KV の鍵は増やさない（形の検査で落ちない）', async () => {
+    const db = fakeDb(); const STATS = kv();
+    const q = new Request('https://m.example.com/api/stat', { method: 'POST', headers: { Origin: 'https://m.example.com', 'CF-Connecting-IP': '198.51.100.7' }, body: JSON.stringify({ ev: 'work_view', id: 'harmoney', via: 'qr', sid: SID, lang: 'ja' }) });
+    const r = await statPost({ request: q, env: { DB: db, STATS, ASSETS: assets } });
+    expect(r.status).toBe(204);
+    expect(STATS.store.size).toBe(0);
+    const ins = db.calls.filter((c) => c.sql.startsWith('INSERT INTO events'));
+    expect(ins).toHaveLength(1);
+    expect(ins[0].args).toEqual([expect.any(Number), SID, 'work_view', 'harmoney', 'qr', 'ja']);
   });
   it('D1 への記録は 1 日の上限を超えたら止まる。KV の数は続く', async () => {
     const db = fakeDb({ daily: DB_DAILY_CAP + 1 }); const STATS = kv();
@@ -358,7 +371,20 @@ describe('管理の集計', () => {
     expect(s.totals.conversations).toBe(0);
     expect(s.flow.total).toBe(0);
     expect(s.flow.columns).toHaveLength(4);
-    expect(s.works).toEqual([{ id: 'harmoney', recommended: 0, entered: 0, picked: 0, views: 0, feedback: 0, buys: 0 }]);
+    expect(s.works).toEqual([{ id: 'harmoney', recommended: 0, entered: 0, picked: 0, views: 0, qr: 0, feedback: 0, buys: 0 }]);
+    expect(s.totals.views).toBe(0);
+    expect(s.totals.qr).toBe(0);
+  });
+  it('作品ページを会場の QR から開いた回数（qr）を数える。views はオンラインと会場の合計', () => {
+    const s = summarize([
+      E('a', 'work_view', 'harmoney', 'qr'), E('b', 'work_view', 'harmoney', 'qr'), E('c', 'work_view', 'harmoney', 'direct'),
+      E('d', 'work_view', 'itadaki', 'gallery'), E('e', 'work_view', 'itadaki', 'concierge'), E('f', 'enter', 'harmoney', 'page'),
+    ], [], [{ id: 'harmoney' }, { id: 'itadaki' }]);
+    const by = Object.fromEntries(s.works.map((w: { id: string }) => [w.id, w]));
+    expect(by.harmoney).toMatchObject({ views: 3, qr: 2, entered: 1 });
+    expect(by.itadaki).toMatchObject({ views: 2, qr: 0 });
+    expect(s.totals).toMatchObject({ views: 5, qr: 2 });
+    expect(describeEvent(E('a', 'work_view', 'harmoney', 'qr'))).toBe('作品ページを見た：harmoney（会場の QR から）');
   });
   it('1 つの会話を 4 段に直す。いちばん進んだところを結果にする', () => {
     expect(pathOf([E('a', 'cg_opener', null, '色で探したい'), E('a', 'cg_question', null, '問い'), E('a', 'concierge_recommend', 'harmoney'), E('a', 'concierge_other'), E('a', 'enter', 'harmoney', 'concierge')]))

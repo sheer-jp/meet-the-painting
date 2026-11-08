@@ -11,7 +11,7 @@ import { publishedStory } from './story.js';
 
 // 文字を白にする絵の明るさの上限（L*）。6 作品：New Chapter 67 だけ墨、ほかは白（docs/EXPERIENCE.md 3 節 T3）
 const TEXT_DARK_LSTAR = 60;
-import { workPage, galleryPage, galleryWallPage, cardSvg } from './pages.js';
+import { workPage, galleryPage, galleryWallPage, cardSvg, exhibitPage, exhibitUrl, qrSvg } from './pages.js';
 import { compositeRooms } from './rooms.js';
 import { titleJaEn } from './catalog.js';
 
@@ -170,12 +170,12 @@ async function generateWork(id) {
   writeFileSync(join(gen, 'space.json'), JSON.stringify(space, null, 2) + '\n');
 
   // 7. QR（作品ページ + ?from=qr）とカード
-  const url = `${BASE_URL}/w/${id}/?from=qr`;
-  const qrSvg = await QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M' });
-  writeFileSync(join(gen, 'qr.svg'), qrSvg);
+  const url = exhibitUrl(BASE_URL, id);
+  const qr = await qrSvg(url);
+  writeFileSync(join(gen, 'qr.svg'), qr);
   await QRCode.toFile(join(gen, 'qr.png'), url, { margin: 1, width: 1024, errorCorrectionLevel: 'M' });
-  const inner = qrSvg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
-  const vb = /viewBox="0 0 (\d+) (\d+)"/.exec(qrSvg);
+  const inner = qr.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '');
+  const vb = /viewBox="0 0 (\d+) (\d+)"/.exec(qr);
   const scale = vb ? 100 / +vb[1] : 1;
   writeFileSync(join(gen, 'card.svg'), cardSvg({ work, space, qrSvgInner: `<g transform="scale(${scale})">${inner}</g>`, url: `${BASE_URL}/w/${id}/` }));
 
@@ -201,6 +201,18 @@ async function main() {
   writeFileSync(join(ROOT, 'index.html'), galleryPage({ works: allWorks, baseUrl: BASE_URL }));
   mkdirSync(join(ROOT, 'gallery'), { recursive: true });   // ギャラリー（docs/ENTRANCE.md 4 節）。/ は受付
   writeFileSync(join(ROOT, 'gallery', 'index.html'), galleryWallPage({ works: allWorks, baseUrl: BASE_URL }));
+  // 会場に掛けるキャプション（DECISIONS 76）。QR は generated/qr.svg の中身。別の BASE_URL で作った古い qr.svg なら、いまの URL で作り直したものを使う
+  mkdirSync(join(ROOT, 'exhibit'), { recursive: true });
+  const qrFor = new Map();
+  for (const { work } of every) {
+    const url = exhibitUrl(BASE_URL, work.id);
+    const want = await qrSvg(url);
+    const file = join(worksDir, work.id, 'generated', 'qr.svg');
+    const have = existsSync(file) ? readFileSync(file, 'utf8') : '';
+    if (have !== want) console.warn(`  [${work.id}] generated/qr.svg が ${url} と違う（別の BASE_URL で作った？）。キャプションには作り直した QR を使う。npm run generate -- ${work.id} で揃う`);
+    qrFor.set(work.id, want);   // 揃っていれば qr.svg の中身と同じ
+  }
+  writeFileSync(join(ROOT, 'exhibit', 'index.html'), exhibitPage({ works: every.map((e) => e.work), baseUrl: BASE_URL, qrSvgOf: (id) => qrFor.get(id) }));
   writeFileSync(join(ROOT, 'public', 'works.json'), JSON.stringify(allWorks.map((s) => ({ id: s.id, title: titleJaEn(s.title, s.id), size_cm: s.size_cm })), null, 2) + '\n');
   await (await import('./catalog.js')).writeCatalog(ROOT);   // 気分から絵をすすめる（docs/RECOMMEND.md 8.3）
   await (await import('./og.js')).writeOg({ root: ROOT, works: allWorks });   // ファビコンと SNS カード（E-16）

@@ -54,9 +54,10 @@ export function pathOf(list) {
 export function summarize(rows, feedback = [], works = []) {
   /** @type {Map<string, any[]>} */
   const bySid = new Map();
-  /** @type {Record<string, { recommended: number, entered: number, picked: number, views: number, feedback: number, buys: number }>} */
+  // views は作品ページを開いた回数の全部。qr はそのうち会場の QR から開いた回数（views に含まれる）
+  /** @type {Record<string, { recommended: number, entered: number, picked: number, views: number, qr: number, feedback: number, buys: number }>} */
   const perWork = {};
-  const work = (/** @type {string} */ id) => (perWork[id] ||= { recommended: 0, entered: 0, picked: 0, views: 0, feedback: 0, buys: 0 });
+  const work = (/** @type {string} */ id) => (perWork[id] ||= { recommended: 0, entered: 0, picked: 0, views: 0, qr: 0, feedback: 0, buys: 0 });
   for (const w of works) work(w.id);
   const openers = new Map(), questions = new Map(), reactions = new Map(), langs = new Map();
   let free = 0, others = 0, rules = 0;
@@ -74,7 +75,7 @@ export function summarize(rows, feedback = [], works = []) {
       case 'concierge_recommend': if (r.work_id) work(r.work_id).recommended++; break;
       case 'enter': if (r.work_id) work(r.work_id).entered++; break;
       case 'gallery_pick': if (r.work_id) work(r.work_id).picked++; break;
-      case 'work_view': if (r.work_id) work(r.work_id).views++; break;
+      case 'work_view': if (r.work_id) { const w = work(r.work_id); w.views++; if (r.detail === 'qr') w.qr++; } break;
       case 'buy_click': if (r.work_id) work(r.work_id).buys++; break;
     }
   }
@@ -86,9 +87,10 @@ export function summarize(rows, feedback = [], works = []) {
     if (f.reaction) inc(fbReactions, f.reaction, f.n);
   }
   const paths = [...bySid.values()].map(pathOf).filter((p) => p !== null);
-  const sum = (/** @type {'recommended'|'entered'|'picked'|'views'|'buys'} */ k) => Object.values(perWork).reduce((a, w) => a + w[k], 0);
+  const sum = (/** @type {'recommended'|'entered'|'picked'|'views'|'qr'|'buys'} */ k) => Object.values(perWork).reduce((a, w) => a + w[k], 0);
   return {
-    totals: { visits: bySid.size, conversations: paths.length, recommended: sum('recommended'), entered: sum('entered'), buys: sum('buys'), feedback: feedbackTotal, free, others, rules },
+    // views と qr：作品ページを開いた回数と、そのうち会場の QR から（オンラインは views - qr）
+    totals: { visits: bySid.size, conversations: paths.length, recommended: sum('recommended'), entered: sum('entered'), views: sum('views'), qr: sum('qr'), buys: sum('buys'), feedback: feedbackTotal, free, others, rules },
     works: Object.entries(perWork).map(([id, w]) => ({ id, ...w })).sort((a, b) => b.recommended + b.entered + b.feedback - (a.recommended + a.entered + a.feedback) || a.id.localeCompare(b.id)),
     openers: ranked(openers),
     questions: ranked(questions),
@@ -136,7 +138,7 @@ export function buildFlow(paths) {
 }
 
 // 会話 1 つの出来事を、日本語の 1 行にする（感想の「この人の流れ」）
-const VIA_JA = { concierge: '受付から', page: '作品ページから', gallery: 'ギャラリーから', direct: '直接' };
+const VIA_JA = { concierge: '受付から', page: '作品ページから', gallery: 'ギャラリーから', direct: '直接', qr: '会場の QR から' };
 const REACT_JA = { love: '好き', curious: '気になる', unsure: 'ちょっと違うかも', write: 'ことばで書く' };
 /** @param {{ ev: string, work_id: string|null, detail: string|null }} e @param {(id: string) => string} title */
 export function describeEvent(e, title = (id) => id) {

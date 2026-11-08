@@ -118,7 +118,9 @@ function showDashboard(name) {
     period, notice, kpis,
     h('section', { id: 'fb' }, h('h2', { text: '届いた感想' }), h('p', { class: 'sub', text: '訪れた人が「作家に届ける」を押した文だけです。日時は日本時間。' }),
       h('div', { class: 'filters' }, h('label', {}, '絵', workSel), h('label', {}, '反応', reactSel)), fbBox),
-    h('section', { id: 'works' }, h('h2', { text: '絵ごとの数' }), h('p', { class: 'sub', text: '「すすめた」は案内役がすすめた回数。「絵の世界へ」「ギャラリーで選ばれた」が、選ばれた回数です。' }), workBox),
+    h('section', { id: 'works' }, h('h2', { text: '絵ごとの数' }), h('p', { class: 'sub', text: '「すすめた」は案内役がすすめた回数。「絵の世界へ」「ギャラリーで選ばれた」が、選ばれた回数です。「会場の QR から」は、展示の会場で絵の横の QR を読み取って開いた回数です（「作品ページ」の数に含まれます）。' }), workBox,
+      // 会場に掛けるキャプション（QR 付き。A4 に 6 枚）。公開サイトのナビからはリンクしない（/exhibit/ は noindex）
+      h('p', { class: 'print-link' }, h('a', { href: '/exhibit/', target: '_blank', rel: 'noopener', text: '展示用のキャプションを印刷' }))),
     h('section', { id: 'questions' }, h('h2', { text: '使われた問いと、押された選択肢' }), h('p', { class: 'sub', text: '案内役は問いを言い換えるので、用意した問いのうち近いものにまとめています。自由入力の文は保存していません。' }), barBox),
     h('section', { id: 'flow' }, h('h2', { text: '会話の流れ' }), h('p', { class: 'sub', text: '受付で話した会話が、どこを通ってどこまで進んだか。線の太さが会話の数です。線や棒に重ねると数が出ます。1 つの会話につき、いちばん先まで進んだところで数えます。' }), flowBox),
   );
@@ -160,7 +162,8 @@ function showDashboard(name) {
   }
 
   function renderKpis(t) {
-    kpis.replaceChildren(...[['会話', t.conversations], ['すすめた回数', t.recommended], ['絵の世界へ', t.entered], ['届いた感想', t.feedback], ['購入リンク', t.buys]]
+    // 作品ページはオンライン（受付・ギャラリー・共有の URL）と会場の QR に分ける
+    kpis.replaceChildren(...[['会話', t.conversations], ['すすめた回数', t.recommended], ['絵の世界へ', t.entered], ['作品ページ・オンライン', (t.views ?? 0) - (t.qr ?? 0)], ['作品ページ・会場の QR', t.qr ?? 0], ['届いた感想', t.feedback], ['購入リンク', t.buys]]
       .map(([label, n]) => h('div', { class: 'kpi' }, h('b', { text: String(n) }), h('span', { text: label }))));
   }
 
@@ -282,11 +285,11 @@ function showDashboard(name) {
 
   // ───── 絵ごとの表 ─────
   function renderWorks(works) {
-    const cols = [['recommended', 'すすめた'], ['entered', '絵の世界へ'], ['picked', 'ギャラリーで選ばれた'], ['views', '作品ページ'], ['feedback', '感想'], ['buys', '購入リンク']];
+    const cols = [['recommended', 'すすめた'], ['entered', '絵の世界へ'], ['picked', 'ギャラリーで選ばれた'], ['views', '作品ページ'], ['qr', '会場の QR から'], ['feedback', '感想'], ['buys', '購入リンク']];
     if (!works.length) { workBox.replaceChildren(h('p', { class: 'empty', text: '作品のカタログを読めませんでした。' })); return; }
     workBox.replaceChildren(h('div', { class: 'scroll' }, h('table', {},
       h('thead', {}, h('tr', {}, h('th', { scope: 'col', text: '絵' }), cols.map(([, l]) => h('th', { scope: 'col', text: l })))),
-      h('tbody', {}, works.map((w) => h('tr', {}, h('td', { text: state.titles.get(w.id) || w.id }), cols.map(([k]) => h('td', { class: w[k] ? null : 'zero', text: String(w[k]) }))))))));
+      h('tbody', {}, works.map((w) => h('tr', {}, h('td', { text: state.titles.get(w.id) || w.id }), cols.map(([k]) => h('td', { class: w[k] ? null : 'zero', text: String(w[k] ?? 0) }))))))));
   }
 
   // ───── 問いと選択肢 ─────

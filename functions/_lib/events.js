@@ -26,7 +26,7 @@ export const JOURNEY = {
   concierge_skip: {},
   enter: { needId: true, detail: ENUM_VIA },
   gallery_pick: { needId: true },
-  work_view: { needId: true, detail: ['concierge', 'gallery', 'direct'] },
+  work_view: { needId: true, detail: ['concierge', 'gallery', 'direct', 'qr'] },   // qr：会場の絵の横の QR（?from=qr）
   buy_click: { needId: true },
   fu_shown: { needId: true, detail: PLACES },
   fu_reaction: { needId: true, detail: [...REACTIONS, 'write'] },

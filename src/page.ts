@@ -175,7 +175,8 @@ const followup = createFollowup({ stat, lang: () => lang });
 followup.listenStoryEnd();
 
 if (workId) {
-  stat('work_view', workId, ['concierge', 'gallery'].includes(url.searchParams.get('via') || '') ? url.searchParams.get('via') : 'direct');
+  // 会場の QR（?from=qr）は via より先に見る。管理ページの「会場の QR から」（docs/ADMIN.md 4 節）
+  stat('work_view', workId, fromQr ? 'qr' : ['concierge', 'gallery'].includes(url.searchParams.get('via') || '') ? url.searchParams.get('via') : 'direct');
   followup.onWorkPage(workId, url.searchParams.get('after') === '1');
   const enter = document.getElementById('enter') as HTMLButtonElement;
   const enterVr = document.getElementById('enter-vr') as HTMLButtonElement;

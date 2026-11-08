@@ -504,6 +504,22 @@ try {
   await entranceCase('sp', { width: 375, height: 667 });
   await passphraseCase();
   await doorCase();
+  // 会場に掛けるキャプション（DECISIONS 76）：/exhibit/ が開き、6 枚。QR は ?from=qr、検索に出さない、印刷ボタンは印刷では消える
+  {
+    const b = await chromium.launch();
+    const p = await b.newPage({ viewport: { width: 1000, height: 900 }, locale: 'ja' });
+    const errs = collectErrors(p);
+    await p.goto(`http://localhost:${PORT}/exhibit/`, { waitUntil: 'load' });
+    const n = await p.locator('.ex-card').count();
+    const urls = await p.locator('.ex-card').evaluateAll((els) => els.map((el) => el.dataset.url || ''));
+    const qrs = await p.locator('.ex-card .ex-qr-svg').count();
+    const robots = await p.locator('meta[name="robots"]').getAttribute('content');
+    check(n === 6 && qrs === 6 && urls.every((u) => /\/w\/[^/]+\/\?from=qr$/.test(u)) && /noindex/.test(robots || ''), `exhibit: キャプション ${n} 枚、QR ${qrs}、URL は ?from=qr、${robots}`);
+    await p.emulateMedia({ media: 'print' });
+    check(!(await p.locator('.ex-print').isVisible()) && !(await p.locator('.ex-tools').isVisible()), 'exhibit: 印刷では「印刷する」と説明を出さない');
+    check(errs.length === 0, `exhibit: エラー ${errs.length}`);
+    await b.close();
+  }
   // 管理ページの HTML（.gitignore で落ちていた。QA #1）
   {
     const r = await fetch(`http://localhost:${PORT}/admin/`);

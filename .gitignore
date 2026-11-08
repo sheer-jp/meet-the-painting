@@ -11,10 +11,11 @@ dist/
 works/*/generated/*.tmp
 # ビルドの中間物
 .vite/
-# 生成物の HTML（ルートの受付、ギャラリー、作品ページ）だけを無視する。public/admin/index.html などの手書きの HTML は追跡する
+# 生成物の HTML（ルートの受付、ギャラリー、展示用のキャプション、作品ページ）だけを無視する。public/admin/index.html などの手書きの HTML は追跡する
 /w/*/index.html
 /index.html
 /gallery/index.html
+/exhibit/index.html
 # Cloudflare Pages Functions（気分から絵をすすめる。functions/）。wrangler の作業フォルダと手元の Secret
 .wrangler/
 .dev.vars

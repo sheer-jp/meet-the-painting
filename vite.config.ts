@@ -65,12 +65,15 @@ function splitUi(): Plugin {
   };
 }
 
-// 受付 index.html、ギャラリー gallery/index.html、w/<id>/index.html を MPA の入力にする
+// 受付 index.html、ギャラリー gallery/index.html、展示用のキャプション exhibit/index.html、w/<id>/index.html を MPA の入力にする
 function workPages(): Record<string, string> {
   const inputs: Record<string, string> = { main: resolve('index.html') };
   // ギャラリー /gallery/（docs/ENTRANCE.md 4 節）。generate が作る。w/*/index.html と同じ扱い
   const gallery = resolve('gallery/index.html');
   if (existsSync(gallery)) inputs.gallery = gallery;
+  // 会場に掛けるキャプション /exhibit/（DECISIONS 76）。generate が作る。noindex で、公開サイトのナビからはリンクしない
+  const exhibit = resolve('exhibit/index.html');
+  if (existsSync(exhibit)) inputs.exhibit = exhibit;
   const wdir = resolve('w');
   if (existsSync(wdir)) {
     for (const id of readdirSync(wdir)) {

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import QRCode from 'qrcode';
 import { LANGS } from './translate.js';
 import { doorStyle, doorBody } from './door.js';
 
@@ -320,5 +321,186 @@ export function cardSvg({ work, space, qrSvgInner, url }) {
   <text x="33" y="40" font-size="2.2" fill="#888">${esc(url)}</text>
   <text x="6" y="51" font-size="2" fill="#999">QR を読むか、URL を開いてください。音が出ます（消音でも文字で楽しめます）</text>
 </svg>
+`;
+}
+
+// ───── 会場に掛けるキャプション /exhibit/index.html（docs/EXPERIENCE.md 1 節、DECISIONS 76） ─────
+// A4 縦に 95 × 65 mm のキャプションを 2 列 × 3 段（6 点で 1 枚）。点線が切り取り線。QR は作品ページ + ?from=qr（会場の入口）
+// 公開サイトのナビからはリンクしない（noindex）。管理ページの「展示用のキャプションを印刷」から開く
+
+// 印刷の文字の改行（docs/DESIGN.md「改行の決まり」）：文節ごとに inline-block の span にして、文節の間だけで折り返す。
+// 考え方は src/text/phrases.ts と同じ（助詞・句読点を前の語へ）。生成は Node（Actions は Node 22）で動くので JS で小さく持つ。
+// 加えて、カタカナの語が細切れに出る（「シナ|ベニヤ」「ミク|スト」「スマ|ホ」）ので、続くカタカナは 1 つにまとめる
+const JA_RE = /[぀-ヿ一-鿿々]/;
+const KATA_RE = /^[゠-ヿー]+$/;
+const ATTACH_JA = new Set(['って', 'いる', 'ない', 'よう', 'する', 'じゃ', 'れる', 'られる', 'ます', 'です', 'でした', 'ました', 'ている', 'なら', 'けど', 'から', 'まで', 'だけ', 'など', 'たち', 'ごと']);
+let segJa;
+export function phraseSplit(text) {
+  const s = String(text ?? '');
+  if (!s) return [];
+  segJa ??= typeof Intl !== 'undefined' && 'Segmenter' in Intl ? new Intl.Segmenter('ja', { granularity: 'word' }) : null;
+  if (!segJa || !JA_RE.test(s)) return [s];
+  const out = [];
+  let afterPunct = true;   // 文頭と句読点のあとは新しい文節
+  let pendingOpen = '';    // 開き括弧は次の語につける
+  for (const { segment: t, isWordLike } of segJa.segment(s)) {
+    const last = out.length ? out[out.length - 1] : '';
+    if (!isWordLike) {
+      if (/^[（「『【〈《〔[(“‘]/.test(t)) { pendingOpen += t; continue; }
+      if (out.length) out[out.length - 1] += t; else out.push(t);
+      afterPunct = /[、。，．！？!?…]/.test(t);
+      continue;
+    }
+    const hira = /^[぀-ゟー]+$/.test(t) && (t.length <= 2 || ATTACH_JA.has(t));
+    const kata = KATA_RE.test(t) && /[゠-ヿー]$/.test(last);
+    const latin = out.length > 0 && !JA_RE.test(last);   // 英数字だけの語（「QR」「A4」「95 ×」）は次の語と離さない
+    if (!afterPunct && !pendingOpen && out.length && (hira || kata || latin)) out[out.length - 1] += t;
+    else out.push(pendingOpen + t);
+    pendingOpen = '';
+    afterPunct = false;
+  }
+  if (pendingOpen) out.push(pendingOpen);
+  return out;
+}
+// 文節の span（日本語を含むときだけ。ラテン文字だけの文は空白で折り返すのでそのまま）。文節の端の空白は span の外に出す（inline-block の中だと消える）
+// 句読点までの「句」も inline-block でまとめ、改行はまず句の間で（「この絵の／中に」より「読み取ると、／この絵の中に」）。句が幅に入らなければ句の中の文節の間で折り返す
+export const phraseHtml = (text) => {
+  const parts = phraseSplit(text);
+  if (parts.length < 2) return esc(text);
+  const span = (p) => {
+    const m = /^(\s*)(.*?)(\s*)$/s.exec(p);
+    return `${m[1] ? ' ' : ''}<span class="ph">${esc(m[2])}</span>${m[3] ? ' ' : ''}`;
+  };
+  const clauses = [[]];
+  for (const p of parts) { clauses[clauses.length - 1].push(p); if (/[、。，．！？!?]\s*$/.test(p)) clauses.push([]); }
+  const used = clauses.filter((c) => c.length);
+  if (used.length < 2) return parts.map(span).join('');
+  return used.map((c) => `<span class="cl">${c.map(span).join('')}</span>`).join('');
+};
+
+export const EXHIBIT_TEXT = {
+  title: '展示用のキャプション',
+  lead: '絵の横に貼ってください。QR を読み取ると、その絵の作品ページが開き、絵の中に入れます。',
+  how: 'A4 縦、倍率 100%（実際のサイズ）で印刷し、点線で切り取ります。1 枚の大きさは 95 × 65 mm です。',
+  print: '印刷する',
+  scan: 'スマホで読み取ると、この絵の中に入れます',
+  sound: '音が出ます。消音でも文字で楽しめます',
+};
+export const EXHIBIT_PER_SHEET = 6;
+export const exhibitUrl = (baseUrl, id) => `${baseUrl}/w/${id}/?from=qr`;
+// QR の SVG（generated/qr.svg と展示用のキャプションで同じ作り方にする）
+export const QR_SVG_OPTS = { type: 'svg', margin: 1, errorCorrectionLevel: 'M' };
+export const qrSvg = (url) => QRCode.toString(url, QR_SVG_OPTS);
+
+// QR の SVG（qrcode の出力）を、キャプションの中に埋め込む形にする（XML 宣言を外し、大きさは CSS の mm で決める）
+const inlineQr = (svg, label) => String(svg || '').replace(/<\?xml[^>]*>\s*/, '').trim()
+  .replace(/^<svg\b([^>]*)>/, (_, attrs) => `<svg${attrs.replace(/\s(width|height)="[^"]*"/g, '')} class="ex-qr-svg" role="img" aria-label="${esc(label)}">`);
+
+// 1 点のキャプション。出すのは work.json にある項目だけ（無い項目は行ごと出さない）
+function exhibitCard(work, baseUrl, qrSvg) {
+  const id = work.id;
+  const ja = work.title?.ja || '';
+  const en = work.title?.en || '';
+  const main = ja || en || id;
+  const sub = ja && en && en !== ja ? en : '';
+  const medium = asMulti(work.medium);
+  const mediumJa = medium?.ja || medium?.en || '';
+  const f = fLabel(work.size_label);
+  const cm = Array.isArray(work.size_cm) && work.size_cm.length >= 2 ? `${work.size_cm[0]} × ${work.size_cm[1]} cm` : '';
+  const size = [f, cm].filter(Boolean).join(' ・ ');
+  const meta = [
+    work.year != null && work.year !== '' ? `<span class="ex-year" data-field="year">${esc(work.year)}</span>` : '',
+    mediumJa ? `<span class="ex-medium" data-field="medium">${phraseHtml(mediumJa)}</span>` : '',
+    size ? `<span class="ex-size" data-field="size">${esc(size)}</span>` : '',
+  ].filter(Boolean).join('');
+  const url = exhibitUrl(baseUrl, id);
+  return `
+    <article class="ex-card" data-id="${esc(id)}" data-url="${esc(url)}">
+      <div class="ex-text">
+        <h2 class="ex-title">${phraseHtml(main)}</h2>
+        ${sub ? `<p class="ex-title-en" lang="en">${esc(sub)}</p>` : ''}
+        ${meta ? `<p class="ex-meta">${meta}</p>` : ''}
+      </div>
+      <div class="ex-qr" data-url="${esc(url)}">${inlineQr(qrSvg, `${main} の作品ページを開く QR コード`)}</div>
+      <p class="ex-guide"><span class="ex-scan">${phraseHtml(EXHIBIT_TEXT.scan)}</span><span class="ex-sound">${phraseHtml(EXHIBIT_TEXT.sound)}</span></p>
+      <p class="ex-brand" lang="en">${SITE_NAME}</p>
+    </article>`;
+}
+
+// works：work.json の配列。qrSvgOf(id, url)：その作品の QR の SVG（generated/qr.svg の中身）
+export function exhibitPage({ works: input, baseUrl, qrSvgOf }) {
+  // 並びはギャラリーと同じ（長辺の昇順。同じなら元の順）
+  const works = [...input].sort((a, b) => longSide(a.size_cm) - longSide(b.size_cm));
+  const sheets = [];
+  for (let i = 0; i < works.length; i += EXHIBIT_PER_SHEET) sheets.push(works.slice(i, i + EXHIBIT_PER_SHEET));
+  const body = sheets.map((list) => `
+  <section class="ex-sheet">${list.map((w) => exhibitCard(w, baseUrl, qrSvgOf(w.id, exhibitUrl(baseUrl, w.id)))).join('')}
+  </section>`).join('');
+  return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>${EXHIBIT_TEXT.title} — ${SITE_NAME}</title>
+${headIcons('../')}
+${FONTS}
+<style>
+/* 白地・墨・明朝・細い線（docs/DESIGN.md）。印刷の寸法は mm で決める */
+:root { --ink: #141210; --ink-2: #625d56; --line: rgba(20, 18, 16, .22); --bg-2: #f1efea; --cut: rgba(20, 18, 16, .45);
+  --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif; --latin: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif; }
+@page { size: A4; margin: 10mm; }
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ink); background: #fff; font: 400 14px/1.8 var(--sans); word-break: keep-all; overflow-wrap: anywhere; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.ph, .cl { display: inline-block; }
+.cl { max-width: 100%; }
+.ex-tools { max-width: 190mm; margin: 0 auto; padding: 32px 0 28px; }
+.ex-tools h1 { margin: 0 0 10px; font: 400 22px/1.5 var(--serif); letter-spacing: .08em; }
+.ex-lead { margin: 0; font-size: 15px; }
+.ex-how { margin: 4px 0 20px; color: var(--ink-2); font-size: 12px; }
+.ex-print { min-height: 52px; min-width: 200px; padding: 0 28px; border: 0; border-radius: 26px; background: var(--ink); color: #fff; font: 400 14px/1 var(--sans); letter-spacing: .14em; cursor: pointer; }
+.ex-print:hover { opacity: .92; }
+.ex-print:active { transform: translateY(1px); }
+.ex-print:focus-visible { outline: 1px solid var(--ink); outline-offset: 3px; }
+/* 1 枚の紙：2 列 × 3 段。外側の上と左、各キャプションの右と下に点線（隣どうしの線は 1 本） */
+.ex-sheet { display: grid; grid-template-columns: repeat(2, 95mm); grid-auto-rows: 65mm; width: 190mm; border-top: .25mm dashed var(--cut); border-left: .25mm dashed var(--cut); break-after: page; }
+.ex-sheet:last-child { break-after: auto; }
+.ex-card { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 32mm; grid-template-rows: minmax(0, 1fr) auto; column-gap: 5mm; width: 95mm; height: 65mm; padding: 6mm 6mm 5mm 7mm; border-right: .25mm dashed var(--cut); border-bottom: .25mm dashed var(--cut); overflow: hidden; break-inside: avoid; }
+.ex-text { grid-column: 1; grid-row: 1; min-width: 0; }
+.ex-title { margin: 0; font: 400 13pt/1.45 var(--serif); letter-spacing: .06em; }
+.ex-title-en { margin: .6mm 0 0; font: italic 300 10pt/1.3 var(--latin); letter-spacing: .02em; }
+.ex-meta { margin: 2.6mm 0 0; color: var(--ink-2); font-size: 7.5pt; line-height: 1.6; font-variant-numeric: tabular-nums; }
+.ex-meta > span { display: block; }
+.ex-qr { grid-column: 2; grid-row: 1 / span 2; align-self: start; width: 32mm; height: 32mm; }
+.ex-qr-svg { display: block; width: 32mm; height: 32mm; }
+.ex-guide { grid-column: 1; grid-row: 2; align-self: end; margin: 0; }
+.ex-scan { display: block; font-size: 8pt; line-height: 1.55; letter-spacing: .02em; }
+.ex-sound { display: block; margin-top: .8mm; color: var(--ink-2); font-size: 6.5pt; line-height: 1.5; }
+.ex-brand { position: absolute; right: 6mm; bottom: 4.6mm; margin: 0; color: var(--ink-2); font: 400 7.5pt/1 var(--latin); letter-spacing: .08em; }
+@media screen {
+  body { background: var(--bg-2); padding: 0 16px 48px; }
+  .ex-paper { width: 210mm; min-height: 297mm; margin: 0 auto 24px; padding: 10mm; background: #fff; box-shadow: 0 0 0 1px var(--line); }
+  .ex-wrap { overflow-x: auto; }
+}
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .ex-paper { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<header class="ex-tools no-print">
+  <h1>${EXHIBIT_TEXT.title}</h1>
+  <p class="ex-lead">${phraseHtml(EXHIBIT_TEXT.lead)}</p>
+  <p class="ex-how">${phraseHtml(EXHIBIT_TEXT.how)}</p>
+  <button type="button" class="ex-print" onclick="window.print()">${EXHIBIT_TEXT.print}</button>
+</header>
+<div class="ex-wrap"><main class="ex-paper">${body}
+</main></div>
+</body>
+</html>
 `;
 }
