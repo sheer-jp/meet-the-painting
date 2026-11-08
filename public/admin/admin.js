@@ -339,7 +339,8 @@ function showDashboard(name) {
     const upto = d.bounds.unit === 'hour' ? jstH(d.bounds.until) + 1 : sr.start.length;
     const cut = (a) => a.slice(0, upto);
     const defs = [
-      ['started', '受付を始めた', t.conversations, p?.conversations, sr.starts],
+      // 訪れた人：受付・ギャラリー・会場の QR のどこから来たかを問わず、期間内に来たタブの数（11-08 作家「訪れた人の方がいい」）
+      ['visits', '訪れた人', t.visits, p?.visits, sr.visitsOnline.map((v, i) => v + sr.visitsQr[i])],
       ['entered', '絵の世界へ', t.entered, p?.entered, sr.entered],
       ['online', '作品ページ（オンライン）', t.views - t.qr, p ? p.views - p.qr : null, sr.viewsOnline],
       ['qr', '会場の QR から', t.qr, p?.qr, sr.viewsQr],

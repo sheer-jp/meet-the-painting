@@ -274,7 +274,7 @@ for (const [name, opts] of [['pc', PC], ['phone', PHONE]]) {
   check((await page.locator('.top .who').innerText()) === vars.ADMIN_USERNAME, `${name}：ログインできている`);
   check((await page.locator('.period button[aria-pressed="true"]').getAttribute('data-range')) === '7', `${name}：期間の既定は 7 日`);
   const labels = await page.locator('.tile .tile-label').allInnerTexts();
-  check(labels.join('|') === '受付を始めた|絵の世界へ|作品ページ（オンライン）|会場の QR から|届いた感想|購入リンク', `${name}：要点のタイルが 6 枚（${labels.join('、')}）`);
+  check(labels.join('|') === '訪れた人|絵の世界へ|作品ページ（オンライン）|会場の QR から|届いた感想|購入リンク', `${name}：要点のタイルが 6 枚（${labels.join('、')}）`);
   check(await page.locator('.tile svg.spark').count() === 6, `${name}：タイルごとに小さな線`);
   check(await page.locator('.tile .delta b').count() === 6, `${name}：タイルごとに前の 7 日との差`);
   // 流れ：段が下がるほど増えない。前の段が 5 件未満なら割合を出さない
