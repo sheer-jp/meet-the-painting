@@ -66,6 +66,34 @@ export function planSteps(o) {
   return steps;
 }
 
+// generate が作品を 1 つ足すと書き換える、全作品で共有の生成物（Git で追跡している）
+export const SHARED_OUTPUTS = ['public/catalog.json', 'public/works.json', 'public/og/gallery.png'];
+
+/**
+ * git status --porcelain --untracked-files=all の行を、公開のコミットに入れるもの・戻してよいかを確かめるもの・思わないものに分ける
+ * include：works/<id>（まとめて 1 つ）、rooms/check/*_<id>.jpg、SHARED_OUTPUTS のうち変わったもの
+ * maybeRestore：ほかの作品の generated/space.json（generated_at だけの変化なら戻す）
+ * @param {string[]} lines @param {string} workId
+ */
+export function classifyChanges(lines, workId) {
+  const include = new Set(), maybeRestore = [], unexpected = [];
+  const check = new RegExp(`^rooms/check/[a-z0-9-]+_${workId}\\.jpg$`);
+  for (const line of lines) {
+    const code = line.slice(0, 2), path = line.slice(3).trim();
+    if (path === `works/${workId}` || path.startsWith(`works/${workId}/`)) include.add(`works/${workId}`);
+    else if (check.test(path) || SHARED_OUTPUTS.includes(path)) include.add(path);
+    else if (/^works\/[a-z0-9-]+\/generated\/space\.json$/.test(path) && code.trim() === 'M') maybeRestore.push(path);
+    else unexpected.push(path);
+  }
+  return { include: [...include], maybeRestore, unexpected };
+}
+
+/** git diff --unified=0 の変化が "generated_at" の行だけか @param {string} diff */
+export function onlyGeneratedAt(diff) {
+  const changed = String(diff).split('\n').filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+  return changed.length > 0 && changed.every((l) => /^[+-]\s*"generated_at":/.test(l));
+}
+
 /** 失敗したときに書く、最後の 40 行 @param {string} s */
 export const tail = (s) => String(s || '').split('\n').filter((l) => l.trim()).slice(-TAIL).join('\n');
 
@@ -186,9 +214,18 @@ export async function runPublish(o, deps, id = o.ids[0]) {
         if (tracked.length) await run('git', ['checkout', '--', ...tracked]);
         deps.log(`片付けた：works/${st.workId}/、w/${st.workId}/、増えたファイル ${added.length}、戻したファイル ${tracked.length}。受付・ギャラリー・展示用の HTML と dist は、次の generate と build で作り直す`);
       } else if (step === 'commit') {
-        const path = `works/${st.workId}`;
-        await run('git', ['add', '--', path]);
-        await run('git', ['commit', '-m', `作品を公開：${st.title}（${path}/。管理画面の下書き ${st.draftId ?? '手元の JSON'} から publish-draft で）`, '--', path]);
+        // コミットに入れるのは、works/<id>/ と、generate が書き換えた共有の生成物（カタログなど。Git で追跡している）だけ
+        // ほかの作品の space.json の generated_at だけの変化は戻す。思わない変化があれば、コミットせずに止める
+        const c = classifyChanges((await run('git', ['status', '--porcelain', '--untracked-files=all'])).split('\n').filter(Boolean), /** @type {string} */ (st.workId));
+        const restore = [];
+        for (const p of c.maybeRestore) {
+          if (onlyGeneratedAt(await run('git', ['diff', '--unified=0', '--', p]))) restore.push(p); else c.unexpected.push(p);
+        }
+        if (c.unexpected.length) throw new Error(`generate が思わないファイルを変えた（コミットしない）：${c.unexpected.join('、')}`);
+        if (restore.length) await run('git', ['checkout', '--', ...restore]);
+        if (!c.include.includes(`works/${st.workId}`)) throw new Error(`works/${st.workId}/ に変更がない`);
+        await run('git', ['add', '--', ...c.include]);
+        await run('git', ['commit', '-m', `作品を公開：${st.title}（works/${st.workId}/ とカタログ。管理画面の下書き ${st.draftId ?? '手元の JSON'} から publish-draft で）`, '--', ...c.include]);
         st.commit = (await run('git', ['rev-parse', 'HEAD'])).trim();
       } else if (step === 'push') {
         await run('git', ['push', 'origin', 'main']);
@@ -206,7 +243,7 @@ export async function runPublish(o, deps, id = o.ids[0]) {
       return finish(false, step, { log: tail(`${out}\n${msg}`) });
     }
   }
-  // コミットしたのは works/<id>/ だけ。生成で変わったほかのファイル（カタログなど）は残るので知らせる
+  // コミットしなかった変更が残っていれば知らせる（ふつうは無い）
   let dirty = [];
   if (!o.dryRun || !o.cleanup) {
     try { dirty = (await deps.exec('git', ['status', '--porcelain'], {})).out.split('\n').filter(Boolean); } catch { /* 知らせるだけ */ }

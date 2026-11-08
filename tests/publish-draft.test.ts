@@ -1,12 +1,15 @@
 // 公開の手順（docs/REGISTER.md 5.3、scripts/publish-draft.mjs）：段取りと、止まったときにコミットも配置もしないこと
 // コマンド・通信・ファイルは差し替え（本物の generate・git・wrangler は動かさない）
 import { describe, it, expect } from 'vitest';
-import { parseArgs, planSteps, runPublish, workFromSource, tail } from '../scripts/publish-lib.js';
+import { parseArgs, planSteps, runPublish, workFromSource, tail, classifyChanges, onlyGeneratedAt } from '../scripts/publish-lib.js';
 
 const WORK = { id: 'test-blue', title: { ja: 'テストの青', en: 'Test Blue' }, year: 2026, size_cm: [53, 65.2], messages: ['一。', '二。', '三。'], availability: 'available', buy: { price_jpy: 198000 } };
 const EXPORT = { id: 'draft_aaaaaaaaaaaaaaaa', work_id: 'test-blue', status: 'queued', work: WORK, photo: { type: 'image/jpeg', base64: Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64') } };
 
-function fakeDeps(o: { fail?: string; status?: string; branch?: string; exportStatus?: number } = {}) {
+// generate のあとの作業ツリー（ほかの作品の space.json は generated_at だけが変わる）
+const AFTER = [' M public/catalog.json', ' M public/og/gallery.png', ' M public/works.json', '?? rooms/check/entrance-house_test-blue.jpg', '?? works/test-blue/generated/space.json', '?? works/test-blue/painting.jpg', '?? works/test-blue/work.json', ' M works/harmoney/generated/space.json'];
+const GEN_AT = '--- a/works/harmoney/generated/space.json\n+++ b/works/harmoney/generated/space.json\n@@ -228 +228 @@\n-  "generated_at": "2026-11-08T01:00:00.000Z"\n+  "generated_at": "2026-11-08T08:00:00.000Z"\n';
+function fakeDeps(o: { fail?: string; status?: string; branch?: string; exportStatus?: number; after?: string[]; diff?: string } = {}) {
   const files = new Map<string, any>();
   const cmds: string[] = [];
   const posts: any[] = [];
@@ -25,6 +28,8 @@ function fakeDeps(o: { fail?: string; status?: string; branch?: string; exportSt
         cmds.push(line);
         if (o.fail && line.includes(o.fail)) return { code: 1, out: 'line1\nline2\nエラーの行' };
         if (line === 'git status --porcelain') return { code: 0, out: o.status ?? '' };
+        if (line === 'git status --porcelain --untracked-files=all') return { code: 0, out: (o.after ?? AFTER).join('\n') };
+        if (line.startsWith('git diff --unified=0 -- ')) return { code: 0, out: o.diff ?? GEN_AT };
         if (line === 'git rev-parse --abbrev-ref HEAD') return { code: 0, out: `${o.branch ?? 'main'}\n` };
         if (line === 'git rev-parse HEAD') return { code: 0, out: 'abc1234def\n' };
         if (line === 'npx wrangler pages deploy') return { code: 0, out: 'Deployment complete! https://abc123.enter-the-painting.pages.dev' };
@@ -93,8 +98,13 @@ describe('publish-draft の実行（差し替え）', () => {
     const r = await runPublish(parseArgs(['draft_aaaaaaaaaaaaaaaa']), f.deps);
     delete process.env.CLOUDFLARE_ACCOUNT_ID;
     expect(r.ok).toBe(true);
-    expect(f.cmds).toContain('git add -- works/test-blue');
-    expect(f.cmds.find((c) => c.startsWith('git commit'))).toMatch(/ -- works\/test-blue$/);
+    // コミットに入る道のり：works/<id>/ と、追跡している共有の生成物（変わったものだけ）。ほかの作品の generated_at だけの変化は戻す
+    const paths = 'public/catalog.json public/og/gallery.png public/works.json rooms/check/entrance-house_test-blue.jpg works/test-blue';
+    expect(f.cmds).toContain('git checkout -- works/harmoney/generated/space.json');
+    expect(f.cmds.indexOf('git checkout -- works/harmoney/generated/space.json')).toBeLessThan(f.cmds.findIndex((c) => c.startsWith('git commit')));
+    expect([...f.cmds.find((c) => c.startsWith('git add'))!.replace('git add -- ', '').split(' ')].sort().join(' ')).toBe(paths);
+    expect(f.cmds.find((c) => c.startsWith('git commit'))!.split(' -- ')[1].split(' ').sort().join(' ')).toBe(paths);
+    expect(f.cmds.find((c) => c.startsWith('git commit'))).not.toContain('harmoney');
     expect(f.cmds.some((c) => /git add (-A|\.)/.test(c))).toBe(false);
     expect(f.cmds.indexOf('git push origin main')).toBeLessThan(f.cmds.indexOf('npx wrangler pages deploy'));
     expect(f.posts[0].body).toEqual({ status: 'building' });
@@ -123,6 +133,24 @@ describe('publish-draft の実行（差し替え）', () => {
     const exists = fakeDeps();
     exists.files.set('/repo/works/test-blue/work.json', '{}');
     expect(await runPublish(parseArgs(['x', '--dry-run']), exists.deps)).toMatchObject({ ok: false, step: 'fetch' });
+  });
+  it('generate が思わないファイルを変えたら、コミットせずに止める（ほかの作品の space.json の中身が変わったときも）', async () => {
+    const odd = fakeDeps({ after: [...AFTER, ' M src/page.ts'] });
+    const r = await runPublish(parseArgs(['x', '--allow-branch', '--no-push', '--no-deploy']), odd.deps);
+    expect(r).toMatchObject({ ok: false, step: 'commit' });
+    expect(r.log).toContain('src/page.ts');
+    expect(odd.cmds.some((c) => c.startsWith('git commit') || c.startsWith('git add'))).toBe(false);
+    const real = fakeDeps({ diff: '@@ -3 +3 @@\n-  "size_cm": [18, 14],\n+  "size_cm": [14, 18],\n' });
+    expect(await runPublish(parseArgs(['x', '--allow-branch', '--no-push', '--no-deploy']), real.deps)).toMatchObject({ ok: false, step: 'commit' });
+    expect(real.cmds.some((c) => c.startsWith('git commit'))).toBe(false);
+  });
+  it('道のりの分け方（純関数）', () => {
+    const c = classifyChanges([...AFTER, '?? rooms/check/sq-sofa_test-blue-2.jpg', ' M rooms/check/sq-sofa_harmoney.jpg'], 'test-blue');
+    expect(c.include.sort()).toEqual(['public/catalog.json', 'public/og/gallery.png', 'public/works.json', 'rooms/check/entrance-house_test-blue.jpg', 'works/test-blue']);
+    expect(c.maybeRestore).toEqual(['works/harmoney/generated/space.json']);
+    expect(c.unexpected).toEqual(['rooms/check/sq-sofa_test-blue-2.jpg', 'rooms/check/sq-sofa_harmoney.jpg']);
+    expect(onlyGeneratedAt(GEN_AT)).toBe(true);
+    expect(onlyGeneratedAt('')).toBe(false);
   });
   it('試し：main 以外のブランチでも --allow-branch --no-push --no-deploy ならコミットまで', async () => {
     const f = fakeDeps({ branch: 'tmp-publish-trial' });
