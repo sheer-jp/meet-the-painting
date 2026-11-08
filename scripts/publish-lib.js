@@ -44,13 +44,15 @@ export function parseArgs(argv) {
 }
 
 /**
- * 段取り。dry-run は確かめ（check）で止める：サーバーの状態も変えない（claim と result を飛ばす）
+ * 段取り。dry-run は確かめ（check）で止める。dry-run と --no-deploy はサーバーの状態を変えない（claim と result を飛ばす）
  * @param {ReturnType<typeof parseArgs>} o
  */
 export function planSteps(o) {
   const api = !!o.api;
   const steps = ['preflight', 'fetch'];
-  if (api && !o.dryRun) steps.push('claim');
+  // サーバーの状態（building → published / failed）を動かすのは、本当に配置するときだけ。試し（dry-run、--no-deploy）は下書きを queued のまま残す
+  const tracks = api && !o.dryRun && o.deploy;
+  if (tracks) steps.push('claim');
   steps.push('write');
   if (o.ci) steps.push('ci');
   steps.push('generate');
@@ -60,7 +62,7 @@ export function planSteps(o) {
   steps.push('commit');
   if (o.push) steps.push('push');
   if (o.deploy) steps.push('deploy');
-  if (api) steps.push('result');
+  if (tracks) steps.push('result');
   return steps;
 }
 

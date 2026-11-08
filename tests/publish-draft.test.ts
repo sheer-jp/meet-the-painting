@@ -60,6 +60,8 @@ describe('publish-draft の引数と段取り', () => {
     const o = parseArgs(['x', '--json', 'd.json', '--photo', 'p.jpg', '--no-push', '--no-deploy', '--ci', '--allow-branch']);
     expect(o.api).toBeNull();
     expect(planSteps(o)).toEqual(['preflight', 'fetch', 'write', 'ci', 'generate', 'test', 'build', 'check', 'commit']);
+    // API からでも、配置しない試しはサーバーの状態（claim・result）を動かさない
+    expect(planSteps(parseArgs(['x', '--no-deploy', '--allow-branch']))).not.toContain('claim');
     expect(() => parseArgs(['x', '--json', 'd.json'])).toThrow(/--photo/);
     expect(() => parseArgs([])).toThrow();
     expect(() => parseArgs(['x', '--cleanup'])).toThrow(/dry-run/);
@@ -128,6 +130,7 @@ describe('publish-draft の実行（差し替え）', () => {
     expect(r.ok).toBe(true);
     expect(f.cmds.some((c) => c.startsWith('git commit'))).toBe(true);
     expect(f.cmds.some((c) => c.startsWith('git push') || c.includes('wrangler'))).toBe(false);
+    expect(f.posts).toEqual([]);
   });
   it('queued が無ければ none（何もしない）', async () => {
     const f = fakeDeps({ exportStatus: 204 });

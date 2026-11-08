@@ -18,9 +18,16 @@ function exec(cmd, args, o = {}) {
   return new Promise((res) => {
     const p = spawn(cmd, args, { cwd: ROOT, env: { ...process.env, ...(o.env || {}) }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
-    const take = (/** @type {Buffer} */ b) => { const s = b.toString(); out += s; process.stdout.write(s.replace(/^/gm, '  │ ')); };
+    // 子の出力は「  │ 」を付けて流す（行の途中で切れても、次の行の頭に付ける）
+    let atStart = true;
+    const take = (/** @type {Buffer} */ b) => {
+      const s = b.toString();
+      out += s;
+      process.stdout.write(s.replace(/(^|\n)(?=[^\n])/g, (m, nl, i) => (i === 0 && !atStart ? m : `${nl}  │ `)));
+      atStart = s.endsWith('\n');
+    };
     p.stdout.on('data', take); p.stderr.on('data', take);
-    p.on('close', (code) => res({ code: code ?? 1, out }));
+    p.on('close', (code) => { if (!atStart) process.stdout.write('\n'); res({ code: code ?? 1, out }); });
     p.on('error', (e) => res({ code: 1, out: `${out}\n${String(e)}` }));
   });
 }
