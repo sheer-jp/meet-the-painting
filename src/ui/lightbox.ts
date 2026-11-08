@@ -297,7 +297,11 @@ export function openLightbox(o: LightboxOptions): () => void {
     document.removeEventListener('keydown', onKey);
     window.removeEventListener('resize', onResize);
     document.documentElement.style.overflow = prevOverflow;
-    root.remove();
+    // 退場：180ms ease-in で消す（docs/DESIGN.md「11-08 磨き込み（プロユース）」。以前は 1 コマで消えた）。消えるまで操作は通さない
+    root.inert = true; root.style.pointerEvents = 'none';
+    const out = !matchMedia('(prefers-reduced-motion: reduce)').matches && root.animate
+      ? root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }) : null;
+    if (out) { out.finished.then(() => root.remove(), () => root.remove()); setTimeout(() => root.remove(), 260); } else root.remove();   // 進まなくても必ず片付ける
     o.returnFocus?.focus();
     o.onClose?.();
   }

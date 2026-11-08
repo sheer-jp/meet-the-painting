@@ -6,6 +6,8 @@
   --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
   --latin: "Cormorant Garamond", "Shippori Mincho", Georgia, serif;
   --sans: "Noto Sans JP", "Hiragino Sans", system-ui, -apple-system, sans-serif;
+  /* 動きの時間とイーズ（11-08 polish-pro。docs/DESIGN.md「11-08 磨き込み（プロユース）」）：小さな面の出現と退場をそろえる */
+  --t-in: 280ms; --t-out: 180ms; --ease-out: cubic-bezier(.2, .7, .3, 1); --ease-in: cubic-bezier(.4, 0, 1, 1);
   --vh100: 100vh;   /* 画面の高さ。dvh の無い古い Safari は vh（カスタムプロパティは宣言を 2 行並べても効かないので @supports で切り替える） */
 }
 @supports (height: 100dvh) { :root { --vh100: 100dvh; } }
@@ -38,10 +40,17 @@ button { font-family: inherit; }
 .top-tools { display: flex; align-items: center; gap: 20px; }
 .top-gallery { font-size: 12px; letter-spacing: .14em; color: var(--ink-2); min-height: 44px; display: inline-flex; align-items: center; white-space: nowrap; }
 .top-gallery:hover { color: var(--ink); }
-.brand b { display: block; font-weight: 400; color: var(--ink); letter-spacing: .3em; }
+.brand b { display: block; font-weight: 400; color: var(--ink); letter-spacing: .3em; white-space: nowrap; }
+/* 11-08 polish-pro P1-5：320px で「SHEER／Gallery」と 2 行に折れた。狭い画面は字間と間隔を詰めて 1 行に */
+@media (max-width: 360px) { .brand b { letter-spacing: .16em; } .top { gap: 10px; } .top-tools { gap: 12px; } .top-gallery { letter-spacing: .08em; } }
 .brand .latin { font-family: var(--latin); font-size: 13px; letter-spacing: .12em; font-style: italic; }
 .lang { font-size: 11px; letter-spacing: .14em; color: var(--ink-2); display: flex; align-items: center; gap: 8px; min-height: 44px; }
 .lang select { background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); padding: 4px 2px; min-height: 44px; font-size: 12px; font-family: inherit; letter-spacing: .06em; }   /* P-9：44px */
+/* 11-08 polish-pro P1-2：WebKit（iOS Safari）の select は appearance を外さないと min-height が効かず 21px になる。
+   外して高さ 44px にし、矢印は細い線のシェブロン、下線は文字の近く（下から 10px）に描く（見た目は従来の下線のまま） */
+.lang select { -webkit-appearance: none; appearance: none; border-bottom: 0; border-radius: 0; padding: 0 18px 0 2px; height: 44px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6' viewBox='0 0 9 6'%3E%3Cpath d='M.5.75 4.5 4.75 8.5.75' fill='none' stroke='%23625d56' stroke-width='1.1'/%3E%3C/svg%3E") right 3px center / 9px 6px no-repeat,
+    linear-gradient(var(--line), var(--line)) 0 calc(100% - 9px) / 100% 1px no-repeat; }
 @media (max-width: 420px) { .top .lang > span { display: none; } }   /* 狭い画面は「言語」の字を省く（選択欄は aria-label で読める） */
 
 /* ラベル（小さな大文字 + 日本語） */
@@ -72,7 +81,9 @@ main.work { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-a
 .titling h1 .t-sub.latin { font-family: var(--latin); font-weight: 300; font-style: italic; letter-spacing: .06em; }
 .titling h1 .t-main.latin { font-family: var(--latin); font-weight: 400; font-style: normal; letter-spacing: .04em; }   /* 11-07 作家：日本語以外では英語を主、日本語を従 */
 .meta { margin: 10px 0 0; font-size: 12.5px; letter-spacing: .12em; color: var(--ink-2); font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 6px 0; }
-.meta > *:not(:last-child)::after { content: "·"; margin: 0 .7em; color: var(--line); }
+/* 11-08 polish-pro P2-1：区切りは項目の前に置く。.meta を 1.6em 左へ広げてその帯を clip-path で切るので、行頭に来た区切りだけが見えない。行末に「·」がぶら下がらない */
+.meta { margin-left: -1.6em; clip-path: inset(-4px -4px -4px 1.6em); }
+.meta > *::before { content: "·"; display: inline-block; width: 1.6em; text-align: center; color: var(--line); }
 .avail { color: var(--ink); }
 .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 28px 0 var(--sec); }
 .btn { appearance: none; border: 1px solid var(--line); background: transparent; color: var(--ink); min-height: 46px; padding: 0 26px; border-radius: 999px; font-size: 13px; letter-spacing: .2em; cursor: pointer; transition: border-color .3s, background .3s, color .3s; display: inline-flex; align-items: center; }
@@ -84,6 +95,9 @@ main.work { max-width: 880px; margin: 0 auto; padding-left: max(16px, env(safe-a
 .actions .btn.primary { min-height: 52px; border-radius: 26px; letter-spacing: .14em; justify-content: center; width: 100%; }
 @media (min-width: 640px) { .actions .btn.primary { width: auto; min-width: 280px; } }
 .actions .cg-enter-note { flex-basis: 100%; margin: -4px 0 0; font-size: 12px; letter-spacing: .1em; color: var(--ink-2); }
+/* 11-08 polish-pro P1-6・P2-2・P2-6：短い注記は行の長さをそろえて（数と単位の間や 1 語だけの行で折れない）、PC で 1 行が長くなりすぎないように。本文は最後の行が 1 語にならないように */
+.actions .cg-enter-note, .buy-note, .rooms-hint > span { max-width: 40em; text-wrap: balance; }
+.statement, .story p, .lb-body p { text-wrap: pretty; }
 .btn.ghost { color: var(--ink-2); }
 .btn:disabled { opacity: .5; cursor: default; }
 .actions .lang { margin-left: auto; }
@@ -160,7 +174,7 @@ footer { margin-top: var(--sec); padding-top: 18px; border-top: 1px solid var(--
 .rooms-hint-note { font-size: 11px; color: var(--ink-2); }
 
 /* 拡大表示（ライトボックス）。docs/SIZE_UX.md 5 節 */
-.lb { position: fixed; inset: 0; z-index: 80; background: rgba(255, 255, 255, .97);   /* 11-07：サイト全体の「しっかり白」に合わせ、拡大表示も白 */ -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: calc(56px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left)); animation: lb-in .3s ease-out; }
+.lb { position: fixed; inset: 0; z-index: 80; background: rgba(255, 255, 255, .97);   /* 11-07：サイト全体の「しっかり白」に合わせ、拡大表示も白 */ -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); display: grid; grid-template-rows: minmax(0, 1fr) auto; padding: calc(56px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(16px, env(safe-area-inset-left)); animation: lb-in var(--t-in) var(--ease-out); }
 @keyframes lb-in { from { opacity: 0; } }
 .lb-media { position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
 .lb-frame { position: relative; flex: none; transform-origin: center; cursor: zoom-in; }
@@ -418,7 +432,7 @@ main.gw { position: relative; }
 .gw-foryou { position: absolute; bottom: calc(100% + 14px); left: 0; font-size: 11px; letter-spacing: .2em; color: var(--ink); white-space: nowrap; }
 /* G-1：大きさの絞り込み。枠も塗りもない文字で、選んでいるものに細い下線 */
 .gw-filter { display: flex; gap: 2px; }
-.gw-chip { appearance: none; position: relative; min-height: 44px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 400 12px/1.3 var(--sans); letter-spacing: .1em; cursor: pointer; transition: color .2s; white-space: nowrap; }
+.gw-chip { appearance: none; position: relative; min-height: 44px; min-width: 44px; padding: 0 12px; border: 0; background: none; color: var(--ink-2); font: 400 12px/1.3 var(--sans); letter-spacing: .1em; cursor: pointer; transition: color .2s; white-space: nowrap; }
 .gw-chip::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 9px; height: 1px; background: var(--ink); transform: scaleX(0); transform-origin: left; transition: transform .3s ease; }
 .gw-chip:hover { color: var(--ink); }
 .gw-chip[aria-pressed="true"] { color: var(--ink); }
@@ -446,6 +460,7 @@ main.gw { position: relative; }
   .gw.has-wall .gw-wall { background: var(--rail) 0 0 / 100% 100% no-repeat local, #eeeeee url("./gallery/wall-pc.webp") 0 0 / auto 100% repeat-x local; }   /* 生成した壁と床（横に継ぎ目なく続く） */
   .gw-wall::after { content: ""; flex: none; width: 1px; order: 99; }
   .gw-intro { order: -1; flex: none; width: clamp(340px, 30vw, 560px); padding-left: clamp(40px, 6vw, 110px); color: #2a2826; }
+  .gw-intro { width: clamp(400px, 34vw, 620px); padding-right: clamp(56px, 5vw, 96px); }   /* 11-08 polish-pro P1-7：壁の文字と最初の絵の間が 20〜27px と詰まっていた */
   .gw-intro > * { display: block; }
   .gw-intro b { font-family: var(--latin); font-weight: 300; font-size: clamp(36px, 3.6vw, 62px); line-height: 1.08; letter-spacing: .01em; }
   .gw-intro span { margin-top: 1.5em; font-family: var(--serif); font-size: clamp(14px, 1.05vw, 17px); letter-spacing: .28em; }
@@ -490,6 +505,7 @@ main.gw { position: relative; }
   .gw-intro { display: none; }
   .gw-filter { justify-content: center; flex-wrap: wrap; padding: 0 8px; margin-top: -2px; gap: 0; }
   .gw-chip { padding: 0 9px; font-size: 11px; letter-spacing: .06em; }
+  .gw-title { white-space: nowrap; }   /* 11-08 polish-pro P1-4：320px で「ギャラリ／ー」と折れた */
   .gw-chip::after { left: 9px; right: 9px; }
   .gw-wall { position: relative; isolation: isolate; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 92px; padding: 56px 20px 40px; }
   .gw-item { width: 100%; }

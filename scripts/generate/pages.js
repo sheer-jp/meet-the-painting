@@ -498,7 +498,7 @@ body { margin: 0; color: var(--ink); background: #fff; font: 400 14px/1.8 var(--
   <p class="ex-how">${phraseHtml(EXHIBIT_TEXT.how)}</p>
   <button type="button" class="ex-print" onclick="window.print()">${EXHIBIT_TEXT.print}</button>
 </header>
-<div class="ex-wrap"><main class="ex-paper">${body}
+<div class="ex-wrap" tabindex="0" aria-label="印刷面"><main class="ex-paper">${body}
 </main></div>
 </body>
 </html>

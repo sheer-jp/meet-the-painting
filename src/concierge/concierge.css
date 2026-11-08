@@ -58,7 +58,7 @@
 .cg-btn:hover { border-color: var(--ink); background: #fff; }
 .cg-btn.primary { border-color: var(--ink); background: var(--ink); color: var(--bg); font-size: 14px; }
 .cg-btn.primary:hover { background: #000; }
-.cg-note { margin: 2px 0 0; max-width: 26em; text-align: center; font-size: 10.5px; letter-spacing: .08em; line-height: 1.6; color: var(--ink-2); }
+.cg-note { margin: 2px 0 0; max-width: 26em; text-align: center; text-wrap: balance; font-size: 11px; letter-spacing: .08em; line-height: 1.6; color: var(--ink-2); }
 .cg-again { appearance: none; min-height: 44px; padding: 0 6px; border: 0; background: transparent; color: var(--ink-2); font-size: 12px; letter-spacing: .18em; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: var(--line); cursor: pointer; }
 .cg-again:hover { color: var(--ink); text-decoration-color: var(--ink); }
 
@@ -126,7 +126,7 @@
 }
 @keyframes cg-fade { from { opacity: 0; } }
 /* C2 の主ボタンの直下の 1 行（何が起きるか） */
-.cg-enter-note { margin: -8px 0 0; font-size: 11px; letter-spacing: .1em; color: var(--ink-2); text-align: center; }
+.cg-enter-note { margin: -8px 0 0; font-size: 11px; letter-spacing: .1em; color: var(--ink-2); text-align: center; text-wrap: balance; }   /* 11-08 polish-pro：数と単位の間で折れない */
 /* C2 の「VR でのぞく」（E-12）：VR が使える端末のときだけ、「この絵の中に入る」の下に小さく */
 .cg-enter-vr { margin-top: -6px; min-height: 44px; padding: 0 14px; border: 0; background: none; color: var(--ink-2); font-family: var(--sans); font-size: 12px; letter-spacing: .16em; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 5px; cursor: pointer; }
 .cg-enter-vr:hover { color: var(--ink); text-decoration-color: currentColor; }

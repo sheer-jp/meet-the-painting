@@ -1,12 +1,13 @@
 /* 感想カード（docs/ADMIN.md 3 節、docs/DESIGN.md）。白い面に墨。ピル、英語ラベル、縁取りの囲みを使わない。選択肢は細い線で区切った行 */
-.fu {
+.fu, .fu-ghost {
   position: fixed; z-index: 60;
   right: max(12px, env(safe-area-inset-right)); bottom: calc(max(12px, env(safe-area-inset-bottom)) + var(--fu-bottom, 0px) + var(--fu-kb, 0px));
   width: min(340px, calc(100vw - 24px)); max-height: calc(var(--vh100) - 24px - var(--fu-bottom, 0px) - var(--fu-kb, 0px)); overflow-y: auto; overscroll-behavior: contain;
   padding: 14px 16px 12px; background: #fff; color: var(--ink); border-radius: 8px;
   box-shadow: 0 1px 2px rgba(35, 32, 29, .1), 0 10px 26px rgba(35, 32, 29, .14);
-  animation: fu-in .45s ease both; outline: none;
+  animation: fu-in var(--t-in, 280ms) var(--ease-out, ease-out) both; outline: none;   /* 11-08 polish-pro：出現 280ms ease-out（以前は .45s ease） */
 }
+.fu-ghost { animation: none; pointer-events: none; }   /* 閉じるときの退場の間だけ（index.ts の dispose） */
 @keyframes fu-in { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .fu { animation: none; } }
 .fu-x { position: absolute; top: 2px; right: 2px; width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--ink-2); font-size: 20px; line-height: 1; cursor: pointer; }

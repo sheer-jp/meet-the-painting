@@ -27,6 +27,8 @@ export async function run(o: RunOptions): Promise<'exit' | 'rooms'> {
   const stage = document.getElementById('stage')!;
   const prevFocus = document.activeElement as HTMLElement | null;
   stage.hidden = false;
+  // 入り：白い面がふわっと重なる（docs/DESIGN.md「11-08 磨き込み（プロユース）」の出現 280ms ease-out。前の画面から 1 コマで切り替えない）
+  stage.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 280, easing: 'cubic-bezier(.2,.7,.3,1)' });
   document.body.style.overflow = 'hidden';
   // 物語の画面の裏（作品ページの main、受付の .cg など stage の外）を inert に。Tab が裏へ抜けないように（AUDIT-1 P1-1。受付の setBehind と同じ考え方）
   const behind = setBehind(stage);
@@ -42,6 +44,7 @@ export async function run(o: RunOptions): Promise<'exit' | 'rooms'> {
   const exit = () => {
     try { hud?.dispose(); sound?.dispose(); fluid?.dispose(); renderer?.dispose(); canvas?.remove(); } catch (e) { console.warn('後片付けに失敗', e); }
     stage.hidden = true; document.body.style.overflow = '';
+    fadeVeil();
     behind.forEach((el) => { el.inert = false; });
     document.removeEventListener('keydown', trap);
     o.onExit?.();
@@ -130,4 +133,15 @@ function trapTab(stage: HTMLElement, e: KeyboardEvent) {
 
 function lighten(hex: string) {
   const c = new THREE.Color(hex); c.lerp(new THREE.Color('#ffffff'), 0.18); return '#' + c.getHexString();
+}
+
+// 出：stage は同期で隠し（呼び出し側と感想カードが #stage[hidden] を見る）、その上に同じ白の幕を 1 枚置いて 180ms ease-in で消す
+function fadeVeil() {
+  if (!document.body.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) return;   // reduced-motion は退場を動かさない（すぐ消す）
+  const veil = document.createElement('div');
+  veil.className = 'stage-veil'; veil.setAttribute('aria-hidden', 'true');
+  veil.style.cssText = 'position:fixed;inset:0;z-index:50;background:#fff;pointer-events:none';
+  document.body.appendChild(veil);
+  veil.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' }).finished.then(() => veil.remove(), () => veil.remove());
+  setTimeout(() => veil.remove(), 260);   // 描画が止まっていて（裏のタブなど）アニメーションが進まなくても、必ず片付ける
 }
