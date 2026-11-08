@@ -55,7 +55,7 @@ export async function onRequestPatch({ request: req, params, env }) {
     } else if ('work_id' in body) {
       const r = checkWorkId(body.work_id, await takenIds(env.DB, await readCatalog(req, env), d.id));
       if (!r.ok) return adminJson(422, { error: 'invalid', message: r.error });
-      next = { ...d, work_id: r.id };
+      next = { ...d, work_id: r.id, data: { ...d.data, id_source: 'manual' } };
     } else if (typeof body.tool === 'string' && TOOL_NAMES.includes(body.tool)) {
       const v = validateTool(body.tool, body.input, { photo: d.photo });
       if (!v.ok) return adminJson(422, { error: 'invalid', message: v.error });

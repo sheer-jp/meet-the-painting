@@ -1,6 +1,7 @@
 // 作品の登録（docs/REGISTER.md 3、4 節）。下書きの形、号数の表、項目ごとの道具とその検査、決まった順に聞く聞き役（ルールだけの版）、
 // work.json への写し。純関数だけ。Pages Functions のグローバルに触れない（tests と scripts/publish-draft.mjs からも使う）
 import { ROOMS } from './rooms-list.js';
+import { isKana } from './romaji.js';
 
 // ───── 号数 → cm（長辺, 短辺）。F・P・M は同じ号なら長辺が同じ。S は正方形。SM はサムホール ─────
 const LONG = { 0: 18, 1: 22.7, 2: 25.8, 3: 27.3, 4: 33.3, 5: 35, 6: 41, 8: 45.5, 10: 53, 12: 60.6, 15: 65.2, 20: 72.7, 25: 80.3, 30: 91 };
@@ -77,10 +78,17 @@ export function draftFromRow(row) {
 }
 
 // 聞く順（docs/REGISTER.md 3 節）。写真は会話の前に選ぶ
-export const ORDER = ['photo', 'title', 'year', 'size', 'medium', 'price', 'messages', 'moods'];
-export const FIELD_LABEL = { photo: '写真', title: '題名', year: '描いた年', size: '大きさ', medium: '画材', price: '値段', messages: '想いの文', moods: '気分の言葉' };
+export const ORDER = ['photo', 'title', 'reading', 'year', 'size', 'medium', 'price', 'messages', 'moods'];
+export const FIELD_LABEL = { photo: '写真', title: '題名', reading: '題名の読み方', year: '描いた年', size: '大きさ', medium: '画材', price: '値段', messages: '想いの文', moods: '気分の言葉' };
 // 「あとで」にできる項目（公開にはなくてもよいもの）
-export const SKIPPABLE = ['moods'];
+export const SKIPPABLE = ['moods', 'reading'];
+
+/** 題名から URL（英語かローマ字）を作るのに読み方が要るか：英語の題名が無く、題名がかなと英数字だけではない（漢字がある） @param {any} d */
+export function needsReading(d) {
+  const t = d.data.work?.title;
+  if (!t?.ja || t.en || d.data.id_source === 'manual') return false;
+  return !/^[\x20-\x7e]+$/.test(t.ja) && !isKana(t.ja);
+}
 
 /** その項目の状態：done（確定）、pending（作家の確認待ち）、skipped、missing @param {any} d draftFromRow の形 @param {string} f */
 export function fieldState(d, f) {
@@ -89,6 +97,7 @@ export function fieldState(d, f) {
   const done = {
     photo: !!d.photo,
     title: !!w.title?.ja,
+    reading: !!w.title?.ja && (!needsReading(d) || !!d.data.reading),
     year: Number.isInteger(w.year),
     size: Array.isArray(w.size_cm) && w.size_cm.length === 2,
     medium: !!w.medium?.ja,
@@ -99,6 +108,7 @@ export function fieldState(d, f) {
   if (done) return 'done';
   if ((f === 'messages' && p.messages) || (f === 'moods' && p.moods)) return 'pending';
   if ((d.data.skipped || []).includes(f)) return 'skipped';
+  if (f === 'reading' && !w.title?.ja) return 'skipped';   // 題名のあとで聞く
   return 'missing';
 }
 
@@ -149,10 +159,11 @@ const S = { type: 'string' };
 const NS = { anyOf: [{ type: 'string' }, { type: 'null' }] };
 const obj = (/** @type {Record<string, any>} */ props) => ({ type: 'object', properties: props, required: Object.keys(props), additionalProperties: false });
 export const AVAILABILITY = ['available', 'sold', 'not_for_sale'];
-export const SKIP_FIELDS = ['title', 'year', 'size', 'medium', 'price', 'messages', 'moods'];
+export const SKIP_FIELDS = ['title', 'reading', 'year', 'size', 'medium', 'price', 'messages', 'moods'];
 
 export const TOOLS = [
   { name: 'set_title', description: '題名を入れる。作家が言った題名だけ。ja は日本語の題名（必須。英語だけの題名ならそのまま）。en は英語の題名（作家が言わなければ、日本語の題名の自然な英訳を入れてよい。作家は確認カードで直せる）', input_schema: obj({ ja: S, en: NS }) },
+  { name: 'set_reading', description: '題名の読み方（ひらがな）。英語の題名が無く、題名に漢字があるとき、URL（ローマ字）を作るのに使う。作家が言った読み方だけ。作家は確認カードの URL で直せる', input_schema: obj({ reading: S }) },
   { name: 'set_year', description: '描いた年（西暦 4 桁）。作家が言った年だけ。推測しない', input_schema: obj({ year: { type: 'integer' } }) },
   { name: 'set_size', description: '大きさ。号で言われたら gou（例 "F15"、"P10"、"S6"、"SM"。系列を言わなければ F）。cm で言われたら width_cm と height_cm（作家の言った順のまま。縦横はサーバーが写真の向きで決める）。写真の縦横比と 5% 以上違うとエラーが返るので、作家に「写真の端が切れていませんか」と聞き直す。作家が「その寸法で合っている」と言ったときだけ confirm_mismatch を true にする', input_schema: obj({ gou: NS, width_cm: { anyOf: [{ type: 'number' }, { type: 'null' }] }, height_cm: { anyOf: [{ type: 'number' }, { type: 'null' }] }, confirm_mismatch: { type: 'boolean' } }) },
   { name: 'set_medium', description: '何に何で描いたか（例「キャンバスにアクリル」）。ja は作家の言葉どおり。en は英訳（任意）', input_schema: obj({ ja: S, en: NS }) },
@@ -190,6 +201,11 @@ export function validateTool(name, input, ctx = {}) {
       if (!ja) return bad('題名が空です');
       if (len(ja) > LIMITS.title || len(en) > LIMITS.titleEn) return bad('題名が長すぎます');
       return { ok: true, patch: { work: { title: en ? { ja, en } : { ja } } }, note: `題名：${ja}${en ? ` / ${en}` : ''}` };
+    }
+    case 'set_reading': {
+      const r = isStr(input.reading) ? oneLine(input.reading).normalize('NFKC') : '';
+      if (!r || !isKana(r) || len(r) > LIMITS.title) return bad('読み方はひらがなかカタカナで');
+      return { ok: true, patch: { reading: r }, note: `読み方：${r}` };
     }
     case 'set_year': {
       const y = input.year, now = new Date().getFullYear();
@@ -317,10 +333,13 @@ export function applyPatch(data, patch) {
     if (patch.proposed.messages) out.skipped = out.skipped.filter((/** @type {string} */ f) => f !== 'messages');
     if (patch.proposed.moods) out.skipped = out.skipped.filter((/** @type {string} */ f) => f !== 'moods');
   }
+  if ('reading' in patch) { if (patch.reading) out.reading = patch.reading; else delete out.reading; out.skipped = out.skipped.filter((/** @type {string} */ f) => f !== 'reading'); }
+  // 題名が変わったら、前の読み方は捨てる（新しい題名の読みを聞き直す）
+  if (patch.work?.title && !('reading' in patch) && data.work?.title?.ja !== patch.work.title.ja) delete out.reading;
   if (patch.skip && !out.skipped.includes(patch.skip)) out.skipped = [...out.skipped, patch.skip];
   return out;
 }
-const fieldTouched = (/** @type {string} */ f, /** @type {any} */ w) => ({ title: 'title', year: 'year', size: 'size_cm', medium: 'medium', price: 'availability', messages: 'messages', moods: 'moods' }[f] in w) || (f === 'price' && w.buy?.price_jpy != null);
+const fieldTouched = (/** @type {string} */ f, /** @type {any} */ w) => ({ reading: '-', title: 'title', year: 'year', size: 'size_cm', medium: 'medium', price: 'availability', messages: 'messages', moods: 'moods' }[f] in w) || (f === 'price' && w.buy?.price_jpy != null);
 
 /** 作家が確認カードで「これでいい」を押した：下書きを確定に移す @param {any} data @param {'messages'|'moods'} which @param {any} value */
 export function confirmProposal(data, which, value) {
@@ -342,6 +361,7 @@ export function confirmProposal(data, which, value) {
 export const QUESTIONS = {
   photo: 'まず、絵の写真を選んでください。正面から、絵の端まで写っているものを。',
   title: 'この絵の名前は？ 英語の名前もあれば、「青い潮 / Blue Tide」のように続けてください。',
+  reading: '作品の URL に使うので、題名の読み方をひらがなで教えてください。（例：いただき）',
   year: '描いた年は？（例：2026）',
   size: '大きさは？ 号でも cm でも（例：F15、65.2 × 53）。',
   medium: '何に、何で描きましたか？（例：キャンバスにアクリル、シナベニヤにミクストメディア、紙に水彩）',
@@ -393,9 +413,18 @@ export function parseAnswer(field, text) {
   if (SKIP_WORDS.test(n.trim())) return SKIP_FIELDS.includes(field) ? { calls: [{ name: 'skip_field', input: { field } }] } : { error: 'もう一度お願いします。' };
   switch (field) {
     case 'title': {
-      const [ja, en] = t.split(/\s*[/／]\s*|\n+/).map((s) => s.trim()).filter(Boolean);
+      const [first, en] = t.split(/\s*[/／]\s*|\n+/).map((s) => s.trim()).filter(Boolean);
+      // 「頂（いただき）」の読み方
+      const m = /^(.+?)\s*[（(]\s*([ぁ-ゖァ-ヺー・\s]+)\s*[）)]$/.exec(first || '');
+      const ja = m ? m[1].trim() : first;
       const ascii = /^[\x20-\x7e]+$/.test(ja || '');
-      return { calls: [{ name: 'set_title', input: { ja, en: en || (ascii ? ja : null) } }] };
+      const calls = [{ name: 'set_title', input: { ja, en: en || (ascii ? ja : null) } }];
+      if (m) calls.push({ name: 'set_reading', input: { reading: m[2].trim() } });
+      return { calls };
+    }
+    case 'reading': {
+      const r = n.trim().replace(/[。.]$/, '');
+      return isKana(r) ? { calls: [{ name: 'set_reading', input: { reading: r } }] } : { error: 'ひらがなでお願いします（例：いただき）。「あとで」なら、URL は確認カードで決められます。' };
     }
     case 'year': {
       const m = /(?:^|\D)((?:19|20)\d{2})(?:\D|$)/.exec(n);

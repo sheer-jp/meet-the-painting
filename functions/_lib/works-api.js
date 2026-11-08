@@ -31,6 +31,8 @@ export function viewOf(d) {
     rooms_auto: !w.rooms?.length,
     room_choices: ROOMS.filter((r) => !r.disabled).map((r) => ({ name: r.name, label: r.label, suits_cm: r.suits_cm })),
     page_url: d.work_id ? `https://meet.sheerarts.com/w/${d.work_id}/` : null,
+    // URL の作り方：en（英語の題名）、romaji（題名か読み方のローマ字）、fallback（仮）、manual（作家が決めた）
+    id_source: d.work_id ? d.data.id_source || 'en' : null,
   };
 }
 

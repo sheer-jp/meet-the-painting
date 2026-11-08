@@ -125,10 +125,14 @@ let draftId = null;
   check((await say('198,000円')).includes('想い'), '値段 → 想いを聞く');
   check((await page.locator('.cc-row', { hasText: '支払い' }).innerText()).includes('支払いリンクを作ります（198,000円）'), '「支払いリンクを作ります（198,000円）」');
   check((await page.locator('.cc-row', { hasText: '作品の id' }).locator('input').inputValue()) === 'test-blue', '作品の id は英語の題名から');
+  check((await page.locator('.cc-url .url-big').innerText()).replace(/\s/g, '') === 'meet.sheerarts.com/w/test-blue/' && (await page.locator('.cc-url').innerText()).includes('この URL になります'), '確認カードで「この URL になります」を目立たせる');
   await say('色が混ざる瞬間が好きだった。朝の光みたいに見えた。見た人が少し元気になればいい。');
   check(await page.locator('.msg-edit input').count() === 3, '想いの文は 3 文の下書きとしてカードに並ぶ');
   check((await say('朝の光、静けさ、新しい章')).includes('これでいい'), '気分 → カードで確かめるよう頼む');
   check(await page.locator('.pub-btn').isDisabled(), '確定するまで「公開する」は押せない');
+  // PC：カードが長くても「公開する」の帯はカードの下端に見えている（中身だけが流れる）
+  const foot = await page.evaluate(() => { const b = document.querySelector('.pub-btn').getBoundingClientRect(), body = document.querySelector('.card-body'); return { bottom: b.bottom, top: b.top, vh: innerHeight, scrolls: body.scrollHeight > body.clientHeight + 1 }; });
+  check(foot.scrolls && foot.top >= 0 && foot.bottom <= foot.vh, `PC：カードが流れても「公開する」が画面の中に見える（${Math.round(foot.bottom)} / ${foot.vh}）`);
   // 想いの文を直して確定
   await page.locator('.msg-edit input').first().fill('色が混ざる瞬間が、好きだった。');
   await page.locator('.confirm-messages').click();
@@ -191,7 +195,12 @@ let draftId = null;
     await page.locator('.talk-form .btn-ink').tap();
     await page.waitForFunction((k) => document.querySelectorAll('.say.bot').length > k, n);
   };
-  await say('スマホの赤 / Phone Red');
+  // 英語の題名が無い漢字の題名：読み方を聞き、ローマ字の URL を出す（itadaki は公開中の作品なので -2）
+  await say('頂');
+  check((await page.locator('.say.bot').last().innerText()).includes('読み方'), '漢字だけの題名なら、URL のために読み方を聞く');
+  await say('いただき');
+  check((await page.locator('.cc-url .url-big').innerText()).replace(/\s/g, '') === 'meet.sheerarts.com/w/itadaki-2/', `読み方のローマ字で URL（${(await page.locator('.cc-url .url-big').innerText()).replace(/\s/g, '')}）`);
+  check((await page.locator('.cc-url').innerText()).includes('ローマ字'), 'URL の作り方を添える');
   await say('2025');
   await say('F15');
   await shot(page, 'register-phone-1-talk');
@@ -210,11 +219,11 @@ let draftId = null;
   check(smallList.length === 0, `スマホ：一覧の押すところは 44px 以上 ${smallList.join('、')}`);
   await shot(page, 'works-phone', { fullPage: true });
   // 書きかけの下書きは捨てられる（確認つき）
-  const item = page.locator('.wl-item', { hasText: 'スマホの赤' });
+  const item = page.locator('.wl-item', { has: page.locator('.badge') }).filter({ hasText: '頂' });
   await item.getByRole('button', { name: '捨てる' }).tap();
   check((await item.innerText()).includes('戻せません'), '捨てる前に確かめる');
   await item.getByRole('button', { name: '消す' }).tap();
-  await page.waitForFunction(() => ![...document.querySelectorAll('.wl-item')].some((e) => e.textContent.includes('スマホの赤')));
+  await page.waitForFunction(() => ![...document.querySelectorAll('.wl-item')].some((e) => e.querySelector('.badge') && e.textContent.includes('頂')));
   check(true, '下書きを捨てられる');
   check(errs.length === 0, `スマホ：ページのエラーなし ${errs.join(' / ')}`);
   await ctx.close();

@@ -1,5 +1,6 @@
 // 作品の登録の下書き（docs/REGISTER.md 4 節）：D1 の work_drafts と、R2 の WORK_UPLOADS（写真）。会話の文は置かない
 import { draftFromRow, slugify, uniqueId, WORK_ID_RE } from './register.js';
+import { romanize, isKana } from './romaji.js';
 
 export const DRAFT_ID_RE = /^[A-Za-z0-9_-]{16,40}$/;
 export const STATUSES = ['draft', 'queued', 'building', 'published', 'failed'];
@@ -65,14 +66,23 @@ export async function takenIds(db, catalog, exceptDraft) {
   return taken;
 }
 
-/** 題名が決まったら、まだ id が無ければ英語の題名から作る @param {any} d @param {Set<string>} taken */
+/**
+ * 作品の id（URL）の案。英語の題名 → かなの題名のローマ字 → 読み方のローマ字 → 仮（work-<年>）の順。作家が自分で決めた id（manual）は変えない
+ * 題名や読み方が変われば作り直す。data.id_source に作り方（en／romaji／fallback／manual）を残す
+ * @param {any} d @param {Set<string>} taken
+ */
 export function ensureWorkId(d, taken) {
-  if (d.work_id) return d;
+  if (d.data.id_source === 'manual' && d.work_id) return d;
   const t = d.data.work?.title;
-  if (!t) return d;
-  const base = slugify(t.en || '') || (/^[\x20-\x7e]+$/.test(t.ja) ? slugify(t.ja) : '');
-  const id = uniqueId(base.length >= 2 ? base : `work-${String(d.data.work.year || new Date().getFullYear())}`, taken);
-  return id ? { ...d, work_id: id } : d;
+  if (!t?.ja) return d;
+  const fromEn = slugify(t.en || '') || (/^[\x20-\x7e]+$/.test(t.ja) ? slugify(t.ja) : '');
+  const fromKana = !fromEn && isKana(t.ja) ? slugify(romanize(t.ja)) : '';
+  const fromReading = !fromEn && !fromKana && d.data.reading ? slugify(romanize(d.data.reading)) : '';
+  const [base, source] = fromEn.length >= 2 ? [fromEn, 'en'] : fromKana.length >= 2 ? [fromKana, 'romaji'] : fromReading.length >= 2 ? [fromReading, 'romaji'] : [`work-${String(d.data.work.year || new Date().getFullYear())}`, 'fallback'];
+  // いまの id がこの案（か、その番号つき）なら、そのまま
+  if (d.work_id && (d.work_id === base || new RegExp(`^${base}-\\d+$`).test(d.work_id)) && d.data.id_source === source) return d;
+  const id = uniqueId(base, taken);
+  return id ? { ...d, work_id: id, data: { ...d.data, id_source: source } } : d;
 }
 
 /** 作家が id を直したとき @param {any} id @param {Set<string>} taken */

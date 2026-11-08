@@ -245,7 +245,14 @@ details.all summary:hover { color: var(--ink); }
 .reg .err, .works-list .err { margin: 6px 0 0; color: var(--ink); font-size: 13px; }
 .reg .err[hidden], .works-list .err[hidden] { display: none; }
 .reg-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 32px 48px; margin-top: 20px; align-items: start; }
-@media (min-width: 900px) { .reg-grid { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); } .reg-card { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; } }
+/* PC：カードは画面に止め、中身だけが流れる。「公開する」の帯はカードの下端に固定（いつも見える）。スマホはカードの最後 */
+@media (min-width: 900px) {
+  .reg-grid { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); }
+  .reg-card { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; }
+  .reg-card .card-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+  .reg-card .cc-foot { flex: none; border-top: 1px solid var(--ink); background: var(--bg); padding: 10px 0 12px; }
+  .reg-card .cc-foot .note { margin-top: 0; }
+}
 .reg-chat[hidden], .reg-card[hidden] { display: none; }
 .reg-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
 .reg-title { margin: 0; font: 400 16px/1.6 var(--serif); letter-spacing: .05em; }
@@ -325,6 +332,12 @@ span.chip { min-height: 32px; }
 .chip:disabled { cursor: default; }
 .mood-add { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
 .cc-foot { border-bottom: 0; }
+.cc-url { padding: 12px 14px; margin: 10px 0; border: 1px solid var(--ink); border-radius: 6px; }
+.cc-url .cc-h { color: var(--ink); }
+.cc-url.tentative { border-style: dashed; }
+.url-big { margin: 0; font: 400 15px/1.6 var(--sans); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.url-big b { font-weight: 600; font-size: 17px; letter-spacing: .02em; }
+.cc-url .note { margin: 4px 0 0; }
 .pub-btn { min-width: 160px; }
 .pub-sure p { margin: 0; font-size: 14px; }
 .pub-sure[hidden], .pub-btn[hidden] { display: none; }

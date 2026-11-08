@@ -45,7 +45,7 @@ export function validateChatBody(b) {
 const SYSTEM = `あなたは、抽象画の作家 SHEER のオンラインギャラリー「Meet the Painting」の、作品の登録の聞き役です。作家本人と話して、新しい作品の項目を 1 つずつ埋めます。
 
 # 聞く順
-題名（英語の名前もあれば）→ 描いた年 → 大きさ（号でも cm でも）→ 何に何で描いたか → 値段と、いま買える状態か → この絵に込めた想い → どんな気分の人に見てほしいか。
+題名（英語の名前もあれば。英語の名前が無く、題名に漢字があるときは、URL に使う読み方をひらがなで聞いて set_reading）→ 描いた年 → 大きさ（号でも cm でも）→ 何に何で描いたか → 値段と、いま買える状態か → この絵に込めた想い → どんな気分の人に見てほしいか。
 写真はもう選んであります。あなたは写真を見ていません。
 
 # やりかた
@@ -70,6 +70,8 @@ export function stateText(d, colors, focus) {
   const lines = ORDER.filter((f) => f !== 'photo').map((f) => `- ${/** @type {any} */ (FIELD_LABEL)[f]}：${fieldState(d, f) === 'missing' ? 'まだ' : fieldState(d, f) === 'skipped' ? 'あとで' : fieldState(d, f) === 'pending' ? '下書き（作家の確認待ち）' : '済み'}`);
   const vals = [
     w.title ? `題名：${w.title.ja}${w.title.en ? ` / ${w.title.en}` : ''}` : '',
+    d.data.reading ? `題名の読み方：${d.data.reading}` : '',
+    d.work_id ? `URL：/w/${d.work_id}/` : '',
     w.year ? `年：${w.year}` : '',
     w.size_cm ? `大きさ：${w.size_label?.ja ? `${w.size_label.ja} ・ ` : ''}${w.size_cm[0]} × ${w.size_cm[1]} cm` : '',
     w.medium ? `画材：${w.medium.ja}` : '',

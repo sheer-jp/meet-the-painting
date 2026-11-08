@@ -5,7 +5,7 @@ const MAX_SIDE = 2000;      // 送る前に縮める長辺
 const MIN_SIDE = 1600;      // これより小さい写真は断る（docs/REGISTER.md 3 節）
 const MAX_BYTES = 15 * 1024 * 1024;
 const STATUS = { draft: '下書き', queued: '公開の待ち', building: '公開中', published: '公開済み', failed: '公開に失敗' };
-const FIELD = { title: '題名', year: '描いた年', size: '大きさ', medium: '画材', price: '値段', messages: '想いの文', moods: '気分の言葉' };
+const FIELD = { title: '題名', reading: '題名の読み方', year: '描いた年', size: '大きさ', medium: '画材', price: '値段', messages: '想いの文', moods: '気分の言葉' };
 const TZ = 'Asia/Tokyo';
 const fmt = new Intl.DateTimeFormat('ja-JP', { timeZone: TZ, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 const yen = (n) => `${Number(n).toLocaleString('ja-JP')}円`;
@@ -299,7 +299,17 @@ export function mountRegister(root, listRoot, ui) {
       h('div', { class: 'cc-row' }, h('dt', { text: '作品の id' }), h('dd', {}, h('div', { class: 'id-edit' }, h('span', { class: 'id-pre', text: '/w/' }), idInput), idErr, v.page_url ? h('span', { class: 'note', text: v.page_url }) : ''), h('div', { class: 'cc-act' }, locked() ? '' : idSave)),
     );
 
-    card.replaceChildren(page, cap, h('section', { class: 'cc' }, h('h3', { class: 'cc-h', text: '項目' }), facts), messagesBox(w, p), moodsBox(w, p), roomsBox(w, v), footer(v));
+    // この URL になります（英語の題名か、題名の読み方のローマ字から。仮のときははっきり言う）
+    const URL_NOTE = { en: '英語の題名から作りました。', romaji: '題名の読み方をローマ字（ヘボン式）にしました。', fallback: '仮の URL です。会話で題名の読み方を教えるか、下の「作品の id」で決めてください。', manual: 'あなたが決めた URL です。' };
+    const urlBox = d.work_id ? h('section', { class: `cc cc-url${v.id_source === 'fallback' ? ' tentative' : ''}`, 'aria-label': '作品ページの URL' },
+      h('h3', { class: 'cc-h', text: 'この URL になります' }),
+      h('p', { class: 'url-big' }, 'meet.sheerarts.com/w/', h('b', { text: d.work_id }), '/'),
+      h('p', { class: 'note', text: `${URL_NOTE[v.id_source] || ''}公開したあとは変えられません。` })) : '';
+    const foot = footer(v);
+    const body = h('div', { class: 'card-body' }, page, urlBox, cap, h('section', { class: 'cc' }, h('h3', { class: 'cc-h', text: '項目' }), facts), messagesBox(w, p), moodsBox(w, p), roomsBox(w, v));
+    const keep = card.querySelector('.card-body')?.scrollTop || 0;   // 描き直しても、読んでいた場所に留まる
+    card.replaceChildren(body, foot);
+    body.scrollTop = keep;
   }
 
   // 想いの文：下書き（確認待ち）は直せる欄で。「これでいい」で確定

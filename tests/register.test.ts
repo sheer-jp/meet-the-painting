@@ -12,6 +12,7 @@ import { sniffType, cleanJpeg, cleanPng, checkPhoto } from '../functions/_lib/im
 import { validateChatBody, claudeTurn, rulesTurn, chatBody } from '../functions/_lib/register-chat.js';
 import { resetRegisterReadyMemo, ensureWorkId } from '../functions/_lib/drafts.js';
 import { resetCatalogMemo } from '../functions/_lib/catalog.js';
+import { romanize, isKana } from '../functions/_lib/romaji.js';
 import { signSession, COOKIE_NAME, hashPassword } from '../functions/_lib/admin-auth.js';
 import { onRequest as guard } from '../functions/api/admin/_middleware.js';
 import { onRequestGet as worksConfig } from '../functions/api/admin/works/config.js';
@@ -241,6 +242,53 @@ describe('聞く順と、公開に要るもの', () => {
   });
 });
 
+describe('英語の題名が無いときの URL（ローマ字の案）', () => {
+  it('かな → ヘボン式（拗音、促音、撥音、長音は書かない）', () => {
+    expect(romanize('いただき')).toBe('itadaki');
+    expect(romanize('しゃしん')).toBe('shashin');
+    expect(romanize('ちょっと')).toBe('chotto');
+    expect(romanize('まっちゃ')).toBe('matcha');
+    expect(romanize('さんぽ')).toBe('sampo');
+    expect(romanize('しんぶん')).toBe('shimbun');
+    expect(romanize('とうきょう')).toBe('tokyo');
+    expect(romanize('ブルー')).toBe('buru');
+    expect(romanize('じゆう')).toBe('jiyu');
+    expect(romanize('ふぁんたじー')).toBe('fantaji');
+    expect(romanize('うちなる はな')).toBe('uchinaru-hana');
+    expect(isKana('いただき')).toBe(true);
+    expect(isKana('頂')).toBe(false);
+  });
+  const draft = (title: any, more: any = {}) => ({ id: 'x', work_id: null as string | null, status: 'draft', photo: PHOTO, data: { ...emptyData(), work: { title, year: 2026 }, ...more } });
+  it('漢字の題名は読み方から（頂 → itadaki）。かなの題名はそのまま。読み方が無ければ仮（work-<年>）', () => {
+    expect(ensureWorkId(draft({ ja: '頂' }, { reading: 'いただき' }), new Set())).toMatchObject({ work_id: 'itadaki', data: { id_source: 'romaji' } });
+    expect(ensureWorkId(draft({ ja: 'いただき' }), new Set())).toMatchObject({ work_id: 'itadaki', data: { id_source: 'romaji' } });
+    expect(ensureWorkId(draft({ ja: '頂', en: 'Summit' }), new Set())).toMatchObject({ work_id: 'summit', data: { id_source: 'en' } });
+    expect(ensureWorkId(draft({ ja: '頂' }), new Set())).toMatchObject({ work_id: 'work-2026', data: { id_source: 'fallback' } });
+    expect(ensureWorkId(draft({ ja: '頂' }, { reading: 'いただき' }), new Set(['itadaki'])).work_id).toBe('itadaki-2');
+    // 仮のあとで読み方が来れば作り直す。作家が決めた id は変えない
+    const tentative = ensureWorkId(draft({ ja: '頂' }), new Set());
+    expect(ensureWorkId({ ...tentative, data: { ...tentative.data, reading: 'いただき' } }, new Set()).work_id).toBe('itadaki');
+    expect(ensureWorkId({ ...draft({ ja: '頂' }, { reading: 'いただき', id_source: 'manual' }), work_id: 'my-peak' }, new Set()).work_id).toBe('my-peak');
+  });
+  it('読み方は、英語の題名が無く漢字の題名のときだけ聞く。「頂（いただき）」と一度に言ってもよい', () => {
+    let d: any = { id: 'x', work_id: null, status: 'draft', photo: PHOTO, data: emptyData() };
+    const r1 = rulesTurn(d, '頂', null);
+    expect(r1.reply).toContain('読み方');
+    d = rulesTurn(r1.draft, 'いただき', null).draft;
+    expect(d.data.reading).toBe('いただき');
+    expect(nextField(d)).toBe('year');
+    const both = rulesTurn({ ...d, data: emptyData() }, '頂（いただき）', null);
+    expect(both.draft.data.reading).toBe('いただき');
+    expect(both.reply).toContain('描いた年');
+    expect(rulesTurn({ ...d, data: emptyData() }, 'Blue / Blue', null).reply).toContain('描いた年');
+    expect(rulesTurn({ ...d, data: emptyData() }, 'いただき', null).reply).toContain('描いた年');
+    expect(validateTool('set_reading', { reading: '頂' }).ok).toBe(false);
+    // 題名が変われば、前の読み方は捨てる
+    const changed = applyPatch(both.draft.data, { work: { title: { ja: '炎' } } });
+    expect(changed.reading).toBeUndefined();
+  });
+});
+
 describe('聞き役：ルールだけの版（API キーが無いとき）', () => {
   it('作家の答えを道具に直す', () => {
     expect(parseAnswer('title', '青い潮 / Blue Tide')).toEqual({ calls: [{ name: 'set_title', input: { ja: '青い潮', en: 'Blue Tide' } }] });
@@ -335,7 +383,7 @@ describe('聞き役：Claude（応答を差し替え。道具の呼び出しを�
     const r = await claudeTurn(base(), chat, 'claude-sonnet-5-5', async (b) => b.messages.length === 1
       ? { stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 't1', name: 'set_title', input: { ja: 'テストの青', en: null } }] }
       : { stop_reason: 'end_turn', content: [] });
-    expect(r.reply).toContain('描いた年');
+    expect(r.reply).toContain('読み方');   // 英語の題名が無く漢字の題名なので、URL のための読み方を聞く
     const refused = await claudeTurn(base(), chat, 'claude-sonnet-5-5', async () => ({ stop_reason: 'refusal', content: [{ type: 'tool_use', id: 't', name: 'set_year', input: { year: 2026 } }] }));
     expect(refused.reply).toBeNull();
     expect(refused.draft.data.work.year).toBeUndefined();
