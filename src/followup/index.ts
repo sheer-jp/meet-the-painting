@@ -102,7 +102,13 @@ export async function openFollowup(o: FollowupOptions): Promise<Card> {
     vv?.removeEventListener('resize', onViewport);
     const main = pageMain();
     if (main) main.style.paddingBottom = '';
-    root.remove();
+    // 退場：180ms ease-in で下へ少し沈みながら消える（docs/DESIGN.md「11-08 磨き込み（プロユース）」）。消えるあいだは .fu ではなく .fu-ghost（同じ見た目、操作できない）にして、
+    // 「カードがあるか」を .fu で見る所（体験・拡大表示の切り替え）に残らないようにする
+    if (root.hidden || !root.isConnected || !root.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { root.remove(); return; }
+    root.className = 'fu-ghost'; root.inert = true; root.setAttribute('aria-hidden', 'true');
+    root.animate([{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(6px)' }], { duration: 180, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' })
+      .finished.then(() => root.remove(), () => root.remove());
+    setTimeout(() => root.remove(), 260);   // 描画が止まっていてアニメーションが進まなくても、必ず片付ける
   };
   const close = () => { o.stat('fu_close', o.workId); o.remember('closed'); dispose(); };
   x.addEventListener('click', close);
