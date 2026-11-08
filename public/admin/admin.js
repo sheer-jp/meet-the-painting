@@ -332,7 +332,9 @@ function showDashboard(name) {
       if (my === loadSeq) dash.classList.remove('is-loading');
     }
   }
+  let drawnW = 0;
   function renderAll(d) {
+    drawnW = dash.clientWidth;
     renderRange(d.bounds);
     renderNotice(d);
     renderTiles(d);
@@ -344,12 +346,14 @@ function showDashboard(name) {
     renderFlow(d.flow);
   }
 
-  // 幅が変わったら、幅で描くグラフだけ描き直す
-  let lastW = 0, raf = 0;
+  // 幅が変わったら、幅で描くグラフだけ描き直す。比べるのは「描いたときの幅」（renderAll で覚える）
+  // 高さだけの変化（感想や小さな絵が読み込まれた）では描き直さない。描き直すと、重ねて出した吹き出しが消える（11-08 e2e の揺れの原因）
+  // タブで隠れていた間に描いたとき（幅 0）は、見えたときに描き直す
+  let raf = 0;
   new ResizeObserver(() => {
     const w = dash.clientWidth;
-    if (!state.data || Math.abs(w - lastW) < 8) return;
-    lastW = w;
+    if (!state.data || !w || Math.abs(w - drawnW) < 8) return;
+    drawnW = w;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => { renderTrend(state.data); renderFlow(state.data.flow); });
   }).observe(dash);
