@@ -12,9 +12,11 @@
   p, ul { margin: 0 0 8px; } ul { padding-left: 1.2em; }
   section + section { margin-top: 48px; padding-top: 32px; border-top: 1px solid rgba(20,18,16,.22); }
   section[hidden] { display: none; }
+  /* 11-08 polish-pro P2-7：日本語は文節で折り返す（対応するブラウザだけ。Chrome 119〜）。最後の行が 1 語にならないように */
+  section:lang(ja) { word-break: auto-phrase; } p, li { text-wrap: pretty; }
   a { color: inherit; text-underline-offset: 3px; }
   .langs { display: flex; flex-wrap: wrap; gap: 0 14px; margin: 0 0 24px; font-size: 12px; }
-  .langs a { min-height: 32px; display: inline-flex; align-items: center; }
+  .langs a { min-height: 44px; display: inline-flex; align-items: center; }   /* 11-08 polish-pro P1-3：タップの的 44px */
   .back { margin-top: 28px; } .back a { min-height: 44px; display: inline-flex; align-items: center; }
 </style>
 </head>
