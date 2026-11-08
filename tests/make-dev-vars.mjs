@@ -7,4 +7,5 @@ const password = randomBytes(18).toString('base64url');
 console.log(`ADMIN_USERNAME=e2e-owner
 ADMIN_PASSWORD_HASH=${await hashPassword(password)}
 ADMIN_SESSION_SECRET=${randomBytes(48).toString('base64url')}
-ADMIN_E2E_PASSWORD=${password}`);
+ADMIN_E2E_PASSWORD=${password}
+PUBLISH_TOKEN=${randomBytes(36).toString('base64url')}`);

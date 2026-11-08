@@ -45,7 +45,7 @@ async function api(path, init) {
   const res = await fetch(path, { credentials: 'same-origin', cache: 'no-store', ...init });
   if (res.status === 401) throw new Unauthorized();
   const data = await res.json().catch(() => null);
-  if (!res.ok) { const e = new Error(data?.error || String(res.status)); e.status = res.status; throw e; }
+  if (!res.ok) { const e = new Error(data?.error || String(res.status)); e.status = res.status; e.data = data; throw e; }
   return data;
 }
 
@@ -262,12 +262,47 @@ function showDashboard(name) {
     h('section', { id: 'talk', class: 'panel' }, h('h2', { text: '会話' }), h('p', { class: 'sub', text: '案内役は問いを言い換えるので、用意した問いのうち近いものにまとめています。受付で自由に書いた文は保存していません。' }), talkBox,
       h('h3', { class: 'h3-gap', text: '会話の流れ' }), h('p', { class: 'sub', text: '受付で話した会話が、どこを通ってどこまで進んだか。1 つの会話につき、いちばん先まで進んだところで数えます。' }), flowBox),
   );
+  // タブ（docs/ADMIN.md 4 節）：ダッシュボード／作品を登録／作品の一覧。登録の画面は開いたときに import() で読む（docs/REGISTER.md 6 節）
+  const TABS = [['dashboard', 'ダッシュボード'], ['register', '作品を登録'], ['works', '作品の一覧']];
+  const dashPane = h('div', { id: 'pane-dashboard', role: 'tabpanel', 'aria-labelledby': 'tab-dashboard' }, h('div', { class: 'controls' }, period, rangeNote), notice, dash);
+  const regPane = h('div', { id: 'pane-register', role: 'tabpanel', 'aria-labelledby': 'tab-register', class: 'reg' });
+  const listPane = h('div', { id: 'pane-works', role: 'tabpanel', 'aria-labelledby': 'tab-works', class: 'works-list' });
+  const panes = { dashboard: dashPane, register: regPane, works: listPane };
+  const tabBar = h('nav', { class: 'tabs', role: 'tablist', 'aria-label': '管理の画面' }, TABS.map(([key, label]) => h('button', {
+    type: 'button', role: 'tab', id: `tab-${key}`, 'aria-controls': `pane-${key}`, 'data-tab': key, text: label, onclick: () => goTab(key),
+  })));
+  let reg = null;
+  async function goTab(key) {
+    if (!panes[key]) key = 'dashboard';
+    tabBar.querySelectorAll('[role=tab]').forEach((b) => { const on = b.dataset.tab === key; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+    for (const [k, el] of Object.entries(panes)) el.hidden = k !== key;
+    const hash = key === 'dashboard' ? '' : `#${key}`;
+    if (location.hash !== hash) history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
+    if (key === 'dashboard') return;
+    if (!reg) {
+      try {
+        const m = await import('/admin/register.js');
+        reg = m.mountRegister(regPane, listPane, { h, api, Unauthorized, onUnauthorized: () => void unauthorized(), goTab: (k) => void goTab(k) });
+      } catch { panes[key].replaceChildren(h('p', { class: 'notice', role: 'alert', text: '画面を読み込めませんでした。読み直してください。' })); return; }
+    }
+    if (key === 'register') await reg.load(); else await reg.loadList();
+  }
+  // 左右の矢印でタブを移る
+  tabBar.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const keys = TABS.map(([k]) => k);
+    const i = keys.indexOf(document.activeElement?.dataset?.tab);
+    if (i < 0) return;
+    const k = keys[(i + (e.key === 'ArrowRight' ? 1 : keys.length - 1)) % keys.length];
+    void goTab(k); tabBar.querySelector(`[data-tab="${k}"]`)?.focus();
+  });
   app.replaceChildren(
     h('header', { class: 'top' }, h('h1', { text: 'Meet the Painting 管理' }), h('span', { class: 'who', text: name }),
       h('button', { type: 'button', class: 'text-btn', text: 'ログアウト', onclick: async () => { await api('/api/admin/logout', { method: 'POST' }).catch(() => {}); location.reload(); } })),
-    h('div', { class: 'controls' }, period, rangeNote),
-    notice, dash,
+    tabBar, dashPane, regPane, listPane,
   );
+  void goTab(location.hash.slice(1) || 'dashboard');
+  addEventListener('hashchange', () => void goTab(location.hash.slice(1) || 'dashboard'));
 
   const unauthorized = async () => { const c = await api('/api/admin/config').catch(() => null); if (c?.configured) showLogin('ログインの期限が切れました。もう一度ログインしてください。'); };
   const name_ = (id) => state.titles.get(id) || id;

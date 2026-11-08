@@ -146,6 +146,20 @@ export async function currentAdmin(req, env) {
   return name && await sameText(name, adminUsername(env)) ? { name } : null;
 }
 
+// ───── 公開専用のトークン（docs/REGISTER.md 5.3、7 節）。Secret の PUBLISH_TOKEN（32 文字以上）。無い・短いときは誰も通さない ─────
+// 受け付けるのは /api/admin/works/<id>/export と /result だけ（_middleware.js）。比べるのは SHA-256 にしてから定数時間で
+export const PUBLISH_PATH_RE = /^\/api\/admin\/works\/[A-Za-z0-9_-]{4,40}\/(export|result)$/;
+const MIN_PUBLISH_TOKEN = 32;
+/** @param {any} env */
+export const publishConfigured = (env) => String(env?.PUBLISH_TOKEN ?? '').trim().length >= MIN_PUBLISH_TOKEN;
+/** Authorization: Bearer <PUBLISH_TOKEN> か @param {Request} req @param {any} env */
+export async function publishTokenOk(req, env) {
+  if (!publishConfigured(env)) return false;
+  const m = /^Bearer ([\x21-\x7e]{1,512})$/.exec(req.headers.get('Authorization') || '');
+  if (!m) return false;
+  return sameText(m[1], String(env.PUBLISH_TOKEN).trim());
+}
+
 // 管理の API の応答に必ず付けるヘッダ
 export const ADMIN_HEADERS = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow', 'X-Content-Type-Options': 'nosniff' };
 /** @param {number} status @param {any} obj @param {Record<string,string>} [extra] */
