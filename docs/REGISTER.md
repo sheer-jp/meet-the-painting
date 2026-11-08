@@ -199,11 +199,12 @@ R1（下書きまで）と R2（公開の手順のスクリプト）を作った
 
 ### 13.3 聞き役と道具（`functions/_lib/register.js`、`register-chat.js`）
 
-Claude API（`CLAUDE_MODEL`、既定 `claude-sonnet-5-5`。effort low、`fallbacks: "default"`、`tool_choice: auto`）。1 回の作家の発言につき、道具の往復は 4 回まで。応答は思考の塊も変えずに次の往復へ渡し、結果は 1 つの user にまとめる。拒否（refusal）と途中切れ（max_tokens）のときは道具を当てない。文が無ければ決まった問いで続ける。写真は送らない（色の値だけ）。system の 2 つ目の塊に、いまの下書きの様子（済んだ項目、写真の縦横、選べる部屋）を入れる。
+Claude API（道具 12 個。`CLAUDE_MODEL`、既定 `claude-sonnet-5-5`。effort low、`fallbacks: "default"`、`tool_choice: auto`）。1 回の作家の発言につき、道具の往復は 4 回まで。応答は思考の塊も変えずに次の往復へ渡し、結果は 1 つの user にまとめる。拒否（refusal）と途中切れ（max_tokens）のときは道具を当てない。文が無ければ決まった問いで続ける。写真は送らない（色の値だけ）。system の 2 つ目の塊に、いまの下書きの様子（済んだ項目、写真の縦横、選べる部屋）を入れる。
 
 | 道具（すべて `strict: true`） | 入力 | サーバーの検査 |
 | --- | --- | --- |
 | `set_title` | ja, en\|null | 1〜60 字（英語 80 字）、制御文字・向きを変える文字を消す |
+| `set_reading` | reading | ひらがなかカタカナ。英語の題名が無く漢字の題名のときだけ聞く（URL のため。「頂（いただき）」と一度に言ってもよい）。題名が変われば捨てる |
 | `set_year` | year（整数） | 1900〜来年 |
 | `set_size` | gou\|null, width_cm\|null, height_cm\|null, confirm_mismatch | 号は表にあるものだけ。縦横は写真の向きで決める。cm を長辺から言っても写真に合わせて入れ替える。写真の縦横比と 5% 以上違えば記録せずに聞き直す（作家が「合っています」と言えば記録） |
 | `set_medium` | ja, en\|null | 1〜60 字 |
@@ -213,10 +214,11 @@ Claude API（`CLAUDE_MODEL`、既定 `claude-sonnet-5-5`。effort low、`fallbac
 | `propose_messages` | messages[] | 3〜10 文、1 文 40 字以内。下書き（作家が「これでいい」で確定） |
 | `propose_moods` | words[], fit\|null | 3〜5 語、1 語 16 字、fit 40 字。下書き |
 | `set_rooms` | rooms[] | 一覧にあって使える部屋だけ、1〜6 室 |
-| `skip_field` | field | 「あとで」。公開に要る項目は、ほかが済んだら最後にもう一度聞く。気分の言葉は「あとで」のままでも公開できる |
+| `skip_field` | field | 「あとで」（読み方も飛ばせる。そのときの URL は仮）。公開に要る項目は、ほかが済んだら最後にもう一度聞く。気分の言葉は「あとで」のままでも公開できる |
 
 - 範囲と長さ（minimum・maxLength など）は strict の型に書けないので、サーバーで確かめる
 - **決まった順に聞く版**（鍵が無い、上流の失敗、1 日の上限）：写真 → 題名 → 年 → 大きさ → 画材 → 値段 → 想い → 気分の順に聞き、答えを同じ道具に直して同じ検査を通す。想いは句点と改行で 40 字以内の文に分けるだけ（整えない）。貼られた Stripe のリンクはどの問いの途中でも拾う
+- **作品の id（URL）**：英語の題名 → かなの題名のローマ字 → 読み方のローマ字（ヘボン式の簡単な表。`functions/_lib/romaji.js`。頂 → itadaki、ん は b・m・p の前で m、長音は書かない）→ 仮の `work-<年>` の順で案を作り、重なれば `-2`。題名や読み方が変われば作り直し、作家が欄で決めた id は変えない。確認カードの上に「この URL になります」を枠で出し、作り方（英語の題名から／ローマ字にした／仮）を添える
 - **号数の表**：F・P・M・S の 0・1・2・3・4・5・6・8・10・12・15・20・25・30 号と SM。同じ号は長辺が同じ。作品台帳の F0・F4・F10・F15 とテストで照らしてある
 - **部屋**：大きさから `scripts/generate/rooms.js` と同じ決め方で自動（`work.json` の `rooms` は作家が選び直したときだけ書く）。Functions から `rooms/` は読めないので、`functions/_lib/rooms-list.js` に写しを持つ（rooms/*.json と違えばテストが落ちる）
 
@@ -229,7 +231,7 @@ PUBLISH_TOKEN=... CLOUDFLARE_ACCOUNT_ID=<アカウント ID> npm run publish-dra
 npm run publish-draft -- x --json <下書き.json> --photo <painting.jpg> --dry-run                  # 手元の JSON（export の形か下書きの行）と写真から
 ```
 
-段取り：作業ツリーがきれいか（変更があれば始めない。push・配置は main からだけ）→ 下書きを受け取る → building の札（配置するときだけ）→ `works/<id>/work.json` と `painting.jpg` → `npm run generate -- <id>`（`BASE_URL=https://meet.sheerarts.com`）→ `npm test` → `npm run build` → 作品ページ・絵・部屋の画像・QR があるか → `works/<id>/` だけをパス指定でコミット → `git push origin main` → `npx wrangler pages deploy` → 結果（published、コミット、URL）。どこかで止まったら、コミットも配置もせず、止まった段と最後の 40 行を result に書き、`result.json` を出す（`--result` で場所を決める）。
+段取り：作業ツリーがきれいか（変更があれば始めない。push・配置は main からだけ）→ 下書きを受け取る → building の札（配置するときだけ）→ `works/<id>/work.json` と `painting.jpg` → `npm run generate -- <id>`（`BASE_URL=https://meet.sheerarts.com`）→ `npm test` → `npm run build` → 作品ページ・絵・部屋の画像・QR があるか → `works/<id>/` と、generate が書き換えた共有の生成物のうち変わったもの（`public/catalog.json`、`public/works.json`、`public/og/gallery.png`、`rooms/check/*_<id>.jpg`）をパス指定でコミット（ほかの作品の `generated/space.json` の generated_at だけの変化はコミットの前に戻す。それ以外の思わない変化があればコミットせずに止める）→ `git push origin main` → `npx wrangler pages deploy` → 結果（published、コミット、URL）。どこかで止まったら、コミットも配置もせず、止まった段と最後の 40 行を result に書き、`result.json` を出す（`--result` で場所を決める）。
 
 - `--no-push`、`--no-deploy`、`--allow-branch`（main 以外へのコミット。試しのとき）、`--ci`（`npm ci` を先に。worktree の node_modules が共有のときは使わない）、`--skip-tests`
 - dry-run と `--no-deploy` は下書きの状態（queued）を動かさない
@@ -245,7 +247,9 @@ npm run publish-draft -- x --json <下書き.json> --photo <painting.jpg> --dry-
 ### 13.6 まだのこと・気になること
 
 - R3〜R5（Managed Agents の公開の係、webhook と進み具合、Stripe の MCP、直す・売れた・物語の確認）
-- 公開でコミットするのは `works/<id>/` だけ（この設計のとおり）。generate は `public/catalog.json`、`public/works.json`、`public/og/gallery.png` と `rooms/check/*_<id>.jpg` も書き換えるので、それらは作業ツリーに残る（配置にはビルドの中身が使われるので公開には効くが、Git の正本とずれる）。どこまでコミットに含めるかは決めておく
+- 11-08 レビューで直したこと：公開のコミットにカタログなどの共有の生成物も入れる（Git の正本とずれない）、PC の確認カードは下端に「公開する」の帯を固定、英語の題名が無いときはローマ字の URL、管理の e2e は毎回まっさらな D1 で流す（`tests/e2e-local.mjs`。前の回の感想が残って「流れを開ける」の検査が別のカードを見ていた）。`tests/generate.test.ts` の展示用キャプションの検査は作品の数を決め打ちしない形にした（7 点目で npm test が落ちて公開が止まるため）
+- 本物の Claude API とはまだ通していない（手元に鍵が無い。テストは道具の呼び出しを固定で返す）。配置の前に `.dev.vars` に鍵を入れて 1 往復通す。strict の道具 12 個（`anyOf [型, null]`）が 400 にならないか、`max_tokens: 2000` で道具の呼び出しが切れないかを見る
+- iPhone の実機で、`createImageBitmap` の向きと HEIC の読み込みをまだ見ていない（崩れたら「90° 回す」）
 - 写真を差し替えたあと、前に決めた寸法の縦横比は確かめ直さない（カードで作家が見る）
 - 公開済みの下書きの中身を 90 日で消す、R2 の写真を 30 日で消す（4 節）はまだ。Pages Functions に定期実行が無いので、R3 の webhook か公開のスクリプトのついでに行う
 - 1 日の上限（Claude 300 回、公開 5 件）は D1 の `daily_counts` で数える。回数の制限（1 分 30 回）は isolate のメモリだけ
