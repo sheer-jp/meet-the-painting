@@ -139,8 +139,12 @@ let draftId = null;
   check(await page.locator('.cc .chip.on').count() >= 3, '気分の言葉が確定する');
   check(await page.locator('.pub-btn').isEnabled(), '全部そろうと「公開する」が押せる');
   check((await page.locator('.cap-title').innerText()) === 'テストの青' && (await page.locator('.cap-meta').innerText()).includes('キャンバスにアクリル'), '展示用キャプションの見え方');
+  // 記録の画像はカードの全体を写す（PC のカードは画面の高さで止まって中で流れるので、写す間だけ外す）
+  const unstick = (on) => page.locator('.reg-card').evaluate((e, v) => { e.style.position = v ? 'static' : ''; e.style.maxHeight = v ? 'none' : ''; }, on);
+  await unstick(true);
   await shot(page, 'register-pc-3-card', { fullPage: true });
   await page.locator('.reg-card').screenshot(shots ? { path: `${shots}/register-card.png` } : {});
+  await unstick(false);
   await page.locator('.pub-btn').click();
   check((await page.locator('.pub-sure').innerText()).includes('支払いリンクを作ります（198,000円）'), '押す前に金額を見せる');
   await page.locator('.pub-yes').click();
@@ -148,7 +152,9 @@ let draftId = null;
   check((await page.locator('.pub-msg').innerText()).includes('公開の準備ができました（R2 のコマンドで公開します）'), '「公開の準備ができました（R2 のコマンドで公開します）」');
   check((await page.locator('.reg-status').innerText()) === '公開の待ち', '状態は「公開の待ち」');
   check(await page.locator('.talk-form').isHidden(), '公開の待ちのあいだは会話を閉じる');
+  await unstick(true);
   await shot(page, 'register-pc-4-queued', { fullPage: true });
+  await unstick(false);
   const st = await (await fetch(`${BASE}/api/admin/works/${draftId}`, { headers: { Cookie: cookie } })).json();
   check(st.draft.status === 'queued', `D1 の状態は queued（${st.draft.status}）`);
 
