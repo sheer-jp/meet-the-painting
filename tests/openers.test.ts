@@ -1,7 +1,7 @@
 // 受付の選択肢（REVIEW-1 P2）：プールから 3 つ。Fisher–Yates で偏りなく、種類がばらけ、言語を切り替えても選び直さない
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { pickOpeners, openerTexts } from '../src/concierge/index';
+import { pickOpeners, openerTexts, openerCount } from '../src/concierge/index';
 import type { Lang } from '../src/i18n';
 
 // 決まった乱数（mulberry32）
@@ -52,5 +52,41 @@ describe('openerTexts', () => {
   });
   it('訳が無い言語は en → ja に落ちる', () => {
     expect(openerTexts({ ja: ['あ', 'い'], en: ['A'] }, [0, 1], 'de')).toEqual(['A', 'い']);
+  });
+});
+
+// 11-08 作家「極端にスマホの画面が小さい人だけ、最初の選択肢を 2 つ＋『自分のことばで書く』に」（docs/ENTRANCE.md 3.2、DECISIONS 78）
+describe('openerCount', () => {
+  it('縦向きで見える高さが 600px 未満なら 2 つ', () => {
+    expect(openerCount(375, 560)).toBe(2);
+    expect(openerCount(375, 553)).toBe(2);
+    expect(openerCount(390, 599)).toBe(2);
+  });
+  it('高さ 600px 以上の縦向きは 3 つ', () => {
+    expect(openerCount(375, 700)).toBe(3);
+    expect(openerCount(360, 640)).toBe(3);
+    expect(openerCount(375, 600)).toBe(3);
+  });
+  it('幅 340px 以下は高さによらず 2 つ', () => {
+    expect(openerCount(320, 568)).toBe(2);
+    expect(openerCount(320, 700)).toBe(2);
+    expect(openerCount(340, 800)).toBe(2);
+  });
+  it('横向きの 2 列（高さ 500px 以下）は 3 つのまま', () => {
+    expect(openerCount(844, 340)).toBe(3);
+    expect(openerCount(844, 390)).toBe(3);
+    expect(openerCount(568, 320)).toBe(3);
+  });
+  it('PC の低い画面も 3 つ', () => {
+    expect(openerCount(1280, 600)).toBe(3);
+    expect(openerCount(1366, 560)).toBe(3);
+  });
+  it('2 つのときもプールから重複なく、違う種類で選べる', () => {
+    for (let s = 1; s <= 50; s++) {
+      const p = pickOpeners(pool.ja, pool.kinds, openerCount(375, 553), rng(s));
+      expect(p).toHaveLength(2);
+      expect(new Set(p.map((i) => pool.kinds[i])).size).toBe(2);
+      expect(openerTexts(pool, p, 'en').every((t) => t.length > 0)).toBe(true);
+    }
   });
 });

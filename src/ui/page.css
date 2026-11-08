@@ -220,7 +220,8 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 .cg {
   --cg-need: 540px;      /* 窓の外に要る高さ：見出し・あいさつ 3 つ・選択肢 4 つ・下のリンク（測った値 + 4px。高さ・幅・言語の段で下が上書き。docs/ENTRANCE.md 3.2） */
   --cg-host-min: 80px;   /* 顔が切れず、表情が読める最小（上半身は object-fit: contain で窓の下端から入るので、小さくなるだけで切れない） */
-  --cg-host: clamp(var(--cg-host-min), calc(100% - var(--cg-need)), 30%);   /* 迎え。チャットの UI らしく、人は上に小さめ（11-06 作家） */
+  --cg-opt-h: 50px;      /* 選択肢 1 つ分（44px + 間 6px）。選択肢が 2 つの小さい画面は --cg-less でこの分だけ窓に回す */
+  --cg-host: clamp(var(--cg-host-min), calc(100% - var(--cg-need) + var(--cg-less, 0px)), 30%);   /* 迎え。チャットの UI らしく、人は上に小さめ（11-06 作家） */
   transition: --cg-host .4s ease;
   position: fixed; left: 0; right: 0; top: var(--cg-top, 0px); height: var(--cg-h, var(--vh100));
   display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto var(--cg-host, 30%) minmax(0, 1fr) auto;
@@ -319,6 +320,16 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
   .cg:not(.is-talk) .cg-openers-cap { line-height: 1.4; }
   .cg:not(.is-talk) .cg-opt { padding-block: 3px; }
   .cg:not(.is-talk) .cg-foot { margin-top: 6px; }
+  .cg { --cg-opt-h: 48px; }   /* 選択肢の間が 4px */
+}
+/* 極端に小さい画面（縦向きで高さ 600px 未満、または幅 340px 以下）は、最初の選択肢を 2 つ＋「自分のことばで書く」に（11-08 作家。DECISIONS 78）。
+   数は JS が最初に 1 回だけ決めて .cg[data-openers] に書く（src/concierge/index.ts の openerCount。回転しても出し直さない）。
+   JS が決める前は同じ条件のメディアクエリで 3 つ目を隠す。減った 1 つ分（--cg-opt-h）は窓に回す */
+.cg[data-openers="2"] .cg-openers .cg-opt[data-opener-index="2"] { display: none; }
+.cg[data-openers="2"] { --cg-less: var(--cg-opt-h); }
+@media (orientation: portrait) and (max-height: 599.98px), (max-width: 340px) and (min-height: 501px), (max-width: 340px) and (orientation: portrait) {
+  .cg:not([data-openers]) .cg-openers .cg-opt[data-opener-index="2"] { display: none; }
+  .cg:not([data-openers]) { --cg-less: var(--cg-opt-h); }
 }
 /* 窓の外に要る高さ（--cg-need）の段。値は measure-fit.cjs（_meta/development/enter-the-painting/evidence/reception-fit/）で、選択肢がいちばん幅を取る 3 つのときに測った高さ + 4px。
    ラテン文字の言語（英語など）は吹き出しと選択肢が折り返しやすいので別の値。段に無い組み合わせで足りないときは、従来どおり会話の欄の中でスクロールする */
@@ -350,7 +361,7 @@ body.paper:has(.cg) { overflow: hidden; overscroll-behavior: none; }
 /* PC・横向きも同じ「上に人、下に会話」（11-06 作家「パソコンでも同じ感じで」）。幅は 640px に抑えて中央に。人の高さは px で上限 */
 @media (min-width: 640px) {
   .cg { max-width: 640px; margin: 0 auto; }   /* 中央に（11-06 深夜、作家「右に寄っている」） */
-  .cg { --cg-host: min(clamp(130px, calc(var(--vh100) * .24), 220px), max(var(--cg-host-min), calc(100% - var(--cg-need)))); }   /* 人の高さは 220px まで（画面が高くても大きくしない。低い画面では選択肢が全部入るように縮める。11-08 は窓の外に要る高さで） */
+  .cg { --cg-host: min(clamp(130px, calc(var(--vh100) * .24), 220px), max(var(--cg-host-min), calc(100% - var(--cg-need) + var(--cg-less, 0px)))); }   /* 人の高さは 220px まで（画面が高くても大きくしない。低い画面では選択肢が全部入るように縮める。11-08 は窓の外に要る高さで） */
   .cg.is-talk { grid-template-rows: auto 150px minmax(0, 1fr) auto; }
   .cg.is-kb { grid-template-rows: auto 120px minmax(0, 1fr) auto; }
   .cg-host { max-height: 220px; }

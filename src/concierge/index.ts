@@ -104,6 +104,12 @@ export function pickOpeners(pool: readonly unknown[], kinds: readonly string[], 
   for (const i of idx) { if (out.length === n) break; if (!out.includes(i)) out.push(i); }
   return out;
 }
+// 最初の画面の選択肢（プールから選ぶもの）の数。11-08 作家「極端にスマホの画面が小さい人だけ、最初の選択肢を 2 つ＋『自分のことばで書く』に」。
+// 縦向きで見える高さが 600px 未満、または幅 340px 以下なら 2 つ。横向きの 2 列（高さ 500px 以下）は 3 つのまま。「自分のことばで書く」はいつも残す（docs/ENTRANCE.md 3.2）
+export function openerCount(width: number, height: number): 2 | 3 {
+  if (width > height && height <= 500) return 3;
+  return (width < height && height < 600) || width <= 340 ? 2 : 3;
+}
 // 選んだ番号の文を、閲覧者の言語で（無ければ en → ja）
 export function openerTexts(pool: Partial<Record<Lang, string[]>>, picked: readonly number[], lang: Lang): string[] {
   return picked.map((i) => pool[lang]?.[i] ?? pool.en?.[i] ?? pool.ja?.[i] ?? '');
@@ -215,6 +221,9 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
   function newSeed() { return Math.random().toString(36).slice(2, 10); }
   // 選択肢のプールから 3 つ（読み込みごと・「もう一度」ごとにシャッフル。11-07 作家）。最初の 3 つ（従来の選択肢）も候補に入る
   let openerPick: number[] = [];
+  // 選択肢の数は最初に 1 回だけ決める（あとで回転しても出し直さない）。.cg の data-openers は CSS（窓の高さの式）が読む
+  const openerN = openerCount(window.visualViewport?.width ?? window.innerWidth, window.visualViewport?.height ?? window.innerHeight);
+  root.dataset.openers = String(openerN);
   let extraUsed = false;            // AI への「別の絵を」の 1 往復を使った
   let rulesRank: string[] | null = null;   // ルールだけの版：近い順の作品
 
@@ -520,13 +529,15 @@ export function mountConcierge(root: HTMLElement, opts: ConciergeOptions): void 
     const pool = c?.openers_pool;
     if (pool && (pool.ja?.length ?? 0) >= 3) {
       // 種類（kinds）がばらけるように（11-07 作家「属性がバラバラなものが出るといい」）。言語の切り替えでは選び直さない
-      if (openerPick.length !== 3) openerPick = pickOpeners(pool.ja!, pool.kinds || [], 3);
+      if (openerPick.length !== openerN) openerPick = pickOpeners(pool.ja!, pool.kinds || [], openerN);
       list = openerTexts(pool, openerPick, lang);
       en = openerTexts(pool, openerPick, 'en');
     }
     thread.querySelectorAll<HTMLButtonElement>('button[data-opener-index]:not(.cg-write)').forEach((b) => {
       const i = +b.dataset.openerIndex!;
-      if (pool && openerPick.length === 3) {
+      b.hidden = i >= openerN;   // 小さい画面では 3 つ目を出さない（ボタンは DOM に残す）
+      if (b.hidden) return;
+      if (pool && openerPick.length === openerN) {
         // プールの文で HTML の元（ja + 隠した en）を作り直す（swapText は ja / en のとき data-orig に戻すため）
         const ja = pool.ja?.[openerPick[i]] ?? '', enText = pool.en?.[openerPick[i]] ?? '';
         const s1 = h('span', '', ja); s1.setAttribute('lang', 'ja'); s1.dataset.lang = 'ja';
