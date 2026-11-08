@@ -28,7 +28,7 @@ migrations_dir = "migrations"
 # 外すまで管理画面の「作品を登録」は「登録はまだ使えません」と出す。ダッシュボードとサイトの他の部分は今までどおり動く
 # 無いバケットの binding を残すと配置が失敗するのでコメントにしてある（D1 と同じ考え方）
 # 作り方：npx wrangler r2 bucket create meet-work-uploads
-# [[r2_buckets]]
-# binding = "WORK_UPLOADS"
-# bucket_name = "meet-work-uploads"
+[[r2_buckets]]
+binding = "WORK_UPLOADS"
+bucket_name = "meet-work-uploads"
 # 公開専用のトークン（/api/admin/works/<id>/export と /result だけが受け付ける）：openssl rand -base64 48 | npx wrangler pages secret put PUBLISH_TOKEN --project-name enter-the-painting
